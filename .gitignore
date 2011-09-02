@@ -1,0 +1,8 @@
+*.o
+*.do
+*.patch
+tags
+config.h
+nilwm
+nilwm-debug
+

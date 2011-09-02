@@ -1,0 +1,15 @@
+Nilwm is a lightweight X window manager based on XCB.
+It is inspired by following projects:
+ - dwm
+ - awesome
+ - wmfs
+ - mcwm
+
+FEATURES
+ - Fast, small footprint.
+ - 
+
+COPYRIGHT
+Nilwm is distributed under the GPL license.
+
+
