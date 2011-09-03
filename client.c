@@ -4,8 +4,6 @@
  * vim:ts=4:sw=4:expandtab
  */
 
-#include <xcb/xcb.h>
-#include <xcb/xproto.h>
 #include "nilwm.h"
 
 /**

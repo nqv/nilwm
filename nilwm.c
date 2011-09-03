@@ -4,14 +4,10 @@
  * vim:ts=4:sw=4:expandtab
  */
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/types.h>
-#include <xcb/xcb.h>
-#include <xcb/xcb_atom.h>
-#include <xcb/xcb_keysyms.h>
+#include <unistd.h>
 #include <X11/keysym.h>
 #include "nilwm.h"
 #include "config.h"
@@ -31,18 +27,116 @@ void spawn(const struct arg_t *arg) {
     }
 }
 
-int check_key(unsigned int mod, xcb_keycode_t key) {
+int check_key(unsigned int mod, xcb_keysym_t key) {
     unsigned int i;
     const struct key_t *k;
 
     for (i = 0; i < NIL_LEN(KEYS); ++i) {
         k = &KEYS[i];
-        if (k->mod == mod && k->key == key) {
+        if (k->mod == mod && k->keysym == key) {
             (*k->func)(&k->arg);
             return 1;
         }
     }
     return 0;
+}
+
+/** Get KeySymbol from a KeyCode according to its state
+ */
+xcb_keysym_t get_keysym(xcb_keycode_t keycode, uint16_t state) {
+    xcb_keysym_t k0, k1;
+
+    /* Mode_Switch is ON */
+    if (state & nil_.mask_modeswitch) {
+        k0 = xcb_key_symbols_get_keysym(nil_.key_syms, keycode, 2);
+        k1 = xcb_key_symbols_get_keysym(nil_.key_syms, keycode, 3);
+    } else {
+        k0 = xcb_key_symbols_get_keysym(nil_.key_syms, keycode, 0);
+        k1 = xcb_key_symbols_get_keysym(nil_.key_syms, keycode, 1);
+    }
+    if (k1 == XCB_NO_SYMBOL) {
+        k1 = k0;
+    }
+    /* NUM on and is from keypad */
+    if ((state & nil_.mask_numlock) && xcb_is_keypad_key(k1)) {
+        if ((state & XCB_MOD_MASK_SHIFT)
+            || ((state & XCB_MOD_MASK_LOCK) && (state & nil_.mask_shiftlock))) {
+            return k0;
+        } else {
+            return k1;
+        }
+    }
+    if (!(state & XCB_MOD_MASK_SHIFT)) {
+        if (!(state & XCB_MOD_MASK_LOCK)) {         /* SHIFT off, CAPS off */
+            return k0;
+        } else if (state & nil_.mask_capslock) {    /* SHIFT off, CAPS on */
+            return k1;
+        }
+    } else {
+        return k1;
+    }
+    NIL_LOG("no symbol: state=0x%x keycode=0x%x", state, keycode);
+    return XCB_NO_SYMBOL;
+}
+
+/** Get the first keycode
+ */
+xcb_keycode_t get_keycode(xcb_keysym_t keysym) {
+    xcb_keycode_t k, *pk;
+
+    /* only use the first one */
+    pk = xcb_key_symbols_get_keycode(nil_.key_syms, keysym);
+    if (pk == 0) {
+        NIL_ERR("no keycode: 0x%x", keysym);
+        return 0;
+    }
+    k = *pk;
+    free(pk);
+    return k;
+}
+
+static
+void update_keys_mask() {
+    xcb_keycode_t key_num, key_shift, key_caps, key_mode, key;
+    xcb_get_modifier_mapping_reply_t *reply;
+    xcb_keycode_t *codes;
+    unsigned int i, j;
+
+    nil_.mask_numlock    = 0;
+    nil_.mask_shiftlock  = 0;
+    nil_.mask_capslock   = 0;
+    nil_.mask_modeswitch = 0;
+    key_num   = get_keycode(XK_Num_Lock);
+    key_shift = get_keycode(XK_Shift_Lock);
+    key_caps  = get_keycode(XK_Caps_Lock);
+    key_mode  = get_keycode(XK_Mode_switch);
+
+    reply = xcb_get_modifier_mapping_reply(nil_.con,
+        xcb_get_modifier_mapping_unchecked(nil_.con), NULL);
+    codes = xcb_get_modifier_mapping_keycodes(reply);
+
+    /* The number of keycodes in the list is 8 * keycodes_per_modifier */
+    for (i = 0; i < 8; ++i) {
+        for (j = 0; j < reply->keycodes_per_modifier; ++j) {
+            key = codes[i * reply->keycodes_per_modifier + j];
+            if (key == key_num) {
+                nil_.mask_numlock = (uint16_t)(1 << i);
+            }
+            if (key == key_shift) {
+                nil_.mask_shiftlock = (uint16_t)(1 << i);
+                break;
+            }
+            if (key == key_caps) {
+                nil_.mask_capslock = (uint16_t)(1 << i);
+            }
+            if (key == key_mode) {
+                nil_.mask_modeswitch = (uint16_t)(1 << i);
+            }
+        }
+    }
+    NIL_LOG("mask num=0x%x shift=0x%x caps=0x%x node=0x%x", nil_.mask_numlock,
+        nil_.mask_shiftlock, nil_.mask_capslock, nil_.mask_modeswitch);
+    free(reply);
 }
 
 static
@@ -56,8 +150,7 @@ int init_screen() {
             nil_.scr->width_in_pixels, nil_.scr->height_in_pixels);
 
     /* Select for events, and at the same time, send SubstructureRedirect */
-    values = XCB_EVENT_MASK_KEY_PRESS
-        | XCB_EVENT_MASK_PROPERTY_CHANGE | XCB_EVENT_MASK_ENTER_WINDOW
+    values = XCB_EVENT_MASK_PROPERTY_CHANGE | XCB_EVENT_MASK_ENTER_WINDOW
         | XCB_EVENT_MASK_STRUCTURE_NOTIFY
         | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY;
     cookie = xcb_change_window_attributes_checked(nil_.con, nil_.scr->root,
@@ -75,17 +168,21 @@ static
 int init_key() {
     unsigned int i;
     const struct key_t *k;
-    xcb_keycode_t c;
+    xcb_keycode_t key;
+
+    nil_.key_syms = xcb_key_symbols_alloc(nil_.con);
+    update_keys_mask();
 
     xcb_ungrab_key(nil_.con, XCB_GRAB_ANY, nil_.scr->root, XCB_MOD_MASK_ANY);
     for (i = 0; i < NIL_LEN(KEYS); ++i) {
         k = &KEYS[i];
-        xcb_grab_key(nil_.con, 1, nil_.scr->root, k->mod, k->key,
-             XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC);
-        xcb_grab_key(nil_.con, 1, nil_.scr->root, k->mod | XCB_MOD_MASK_LOCK, k->key,
+        key = get_keycode(k->keysym);
+        if (key == 0) {
+            continue;
+        }
+        xcb_grab_key(nil_.con, 1, nil_.scr->root, k->mod, key,
              XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC);
     }
-    xcb_flush(nil_.con);
     return 0;
 }
 
@@ -111,6 +208,11 @@ int init_mouse() {
 
 static
 void cleanup() {
+    if (nil_.key_syms) {
+        xcb_key_symbols_free(nil_.key_syms);
+    }
+    xcb_ungrab_keyboard(nil_.con, XCB_TIME_CURRENT_TIME);
+    xcb_destroy_subwindows(nil_.con, nil_.scr->root);
     xcb_flush(nil_.con);
     xcb_disconnect(nil_.con);
 }
@@ -128,6 +230,7 @@ int main(int argc, char **argv) {
         xcb_disconnect(nil_.con);
         exit(1);
     }
+    xcb_flush(nil_.con);
     recv_events();
     cleanup();
     return 0;

@@ -4,21 +4,21 @@
  * vim:ts=4:sw=4:expandtab
  */
 
-#include <stdio.h>
 #include <stdlib.h>
-#include <xcb/xcb.h>
 #include "nilwm.h"
 
 static
 void handle_key_press(xcb_key_press_event_t *e) {
+    xcb_keysym_t sym;
     NIL_LOG("key press %d %d", e->state, e->detail);
-    if (check_key(e->state, e->detail)) {
+
+    sym = get_keysym(e->detail, e->state);
+    if (check_key(e->state, sym)) {
         return;
     }
 }
 
-/**
- * Handle the ButtonPress event
+/** Handle the ButtonPress event
  */
 static
 void handle_button_press(xcb_button_press_event_t *e) {
@@ -31,19 +31,17 @@ void handle_button_press(xcb_button_press_event_t *e) {
 
 static
 void handle_button_release(xcb_button_release_event_t *e) {
-    NIL_LOG("button releas %d", e->detail);
+    NIL_LOG("mouse release %d", e->detail);
 }
 
-/**
- * Mouse moved.
+/** Mouse moved
  */
 static
 void handle_motion_notify(xcb_motion_notify_event_t *e) {
-    NIL_LOG("button releas %d", e->detail);
+    NIL_LOG("mouse motion %d", e->detail);
 }
 
-/**
- * Mouse entered.
+/** Mouse entered
  */
 static
 void handle_enter_notify(xcb_enter_notify_event_t *e) {
@@ -58,7 +56,7 @@ void handle_unmap_notify(xcb_unmap_notify_event_t *e) {
 
 static
 void handle_destroy_notify(xcb_destroy_notify_event_t *e) {
-    NIL_LOG("unmap notify %d", e->window);
+    NIL_LOG("destroy notify %d", e->window);
 }
 
 static
@@ -91,8 +89,7 @@ end:
     free(reply);
 }
 
-/**
- * Events loop
+/** Events loop
  */
 void recv_events() {
     xcb_generic_event_t *e;

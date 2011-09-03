@@ -7,12 +7,16 @@
 #ifndef NILWM_H_
 #define NILWM_H_
 
+#include <stdio.h>
+#include <xcb/xcb.h>
+#include <xcb/xcb_keysyms.h>
+
 #define NIL_QUOTE(x)            #x
 #define NIL_TOSTR(x)            NIL_QUOTE(x)
 #define NIL_SRC                 __FILE__ ":" NIL_TOSTR(__LINE__)
-#define NIL_ERR(fmt, ...)       fprintf(stderr, "-" NIL_SRC "\t\t" fmt "\n", __VA_ARGS__)
+#define NIL_ERR(fmt, ...)       fprintf(stderr, "*" NIL_SRC "\t\t" fmt "\n", __VA_ARGS__)
 #ifdef DEBUG
-# define NIL_LOG(fmt, ...)      fprintf(stdout, "*" NIL_SRC "\t\t" fmt "\n", __VA_ARGS__)
+# define NIL_LOG(fmt, ...)      fprintf(stdout, "-" NIL_SRC "\t\t" fmt "\n", __VA_ARGS__)
 #else
 # define NIL_LOG(fmt, ...)
 #endif
@@ -41,7 +45,7 @@ struct arg_t {
 
 struct key_t {
     unsigned int mod;
-    xcb_keycode_t key;
+    unsigned int keysym;
     void (*func)(const struct arg_t *arg);
     struct arg_t arg;
 };
@@ -54,6 +58,11 @@ struct config_t {
 struct nilwm_t {
     xcb_connection_t *con;
     xcb_screen_t *scr;
+    xcb_key_symbols_t *key_syms;
+    uint16_t mask_numlock;
+    uint16_t mask_capslock;
+    uint16_t mask_shiftlock;
+    uint16_t mask_modeswitch;
     struct client_t *client_list;
     struct config_t *cfg;
 };
@@ -67,7 +76,9 @@ void recv_events();
 
 /* nilwm.c */
 void spawn(const struct arg_t *arg);
-int check_key(unsigned int mod, xcb_keycode_t key);
+int check_key(unsigned int mod, xcb_keysym_t key);
+xcb_keysym_t get_keysym(xcb_keycode_t keycode, uint16_t state);
+xcb_keycode_t get_keycode(xcb_keysym_t keysym);
 
 /* global variables in nilwm.c */
 extern struct nilwm_t nil_;
