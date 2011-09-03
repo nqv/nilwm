@@ -11,6 +11,8 @@
 #include <sys/types.h>
 #include <xcb/xcb.h>
 #include <xcb/xcb_atom.h>
+#include <xcb/xcb_keysyms.h>
+#include <X11/keysym.h>
 #include "nilwm.h"
 #include "config.h"
 
@@ -29,12 +31,12 @@ void spawn(const struct arg_t *arg) {
     }
 }
 
-int check_shortcut(unsigned int mod, xcb_keycode_t key) {
+int check_key(unsigned int mod, xcb_keycode_t key) {
     unsigned int i;
-    const struct shortcut_t *k;
+    const struct key_t *k;
 
-    for (i = 0; i < NIL_LEN(SHORTCUTS); ++i) {
-        k = &SHORTCUTS[i];
+    for (i = 0; i < NIL_LEN(KEYS); ++i) {
+        k = &KEYS[i];
         if (k->mod == mod && k->key == key) {
             (*k->func)(&k->arg);
             return 1;
@@ -54,8 +56,9 @@ int init_screen() {
             nil_.scr->width_in_pixels, nil_.scr->height_in_pixels);
 
     /* Select for events, and at the same time, send SubstructureRedirect */
-    values = XCB_EVENT_MASK_EXPOSURE
-        | XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE
+    values = XCB_EVENT_MASK_KEY_PRESS
+        | XCB_EVENT_MASK_PROPERTY_CHANGE | XCB_EVENT_MASK_ENTER_WINDOW
+        | XCB_EVENT_MASK_STRUCTURE_NOTIFY
         | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY;
     cookie = xcb_change_window_attributes_checked(nil_.con, nil_.scr->root,
         XCB_CW_EVENT_MASK, &values);
@@ -70,23 +73,39 @@ int init_screen() {
 
 static
 int init_key() {
+    unsigned int i;
+    const struct key_t *k;
+    xcb_keycode_t c;
+
+    xcb_ungrab_key(nil_.con, XCB_GRAB_ANY, nil_.scr->root, XCB_MOD_MASK_ANY);
+    for (i = 0; i < NIL_LEN(KEYS); ++i) {
+        k = &KEYS[i];
+        xcb_grab_key(nil_.con, 1, nil_.scr->root, k->mod, k->key,
+             XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC);
+        xcb_grab_key(nil_.con, 1, nil_.scr->root, k->mod | XCB_MOD_MASK_LOCK, k->key,
+             XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC);
+    }
+    xcb_flush(nil_.con);
     return 0;
 }
 
+/**
+ * Grab mouse buttons.
+ */
 static
 int init_mouse() {
     xcb_grab_button(nil_.con, 0, nil_.scr->root,
         XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE,
         XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, nil_.scr->root,
-        XCB_NONE, 1 /* left mouse button */, MODKEY);
+        XCB_NONE, XCB_BUTTON_INDEX_1 /* left mouse button */, MOD_KEY);
     xcb_grab_button(nil_.con, 0, nil_.scr->root,
         XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE,
         XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, nil_.scr->root,
-        XCB_NONE, 2 /* middle mouse button */, MODKEY);
+        XCB_NONE, XCB_BUTTON_INDEX_2 /* middle mouse button */, MOD_KEY);
     xcb_grab_button(nil_.con, 0, nil_.scr->root,
         XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE,
         XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, nil_.scr->root,
-        XCB_NONE, 3 /* right mouse button */, MODKEY);
+        XCB_NONE, XCB_BUTTON_INDEX_3 /* right mouse button */, MOD_KEY);
     return 0;
 }
 

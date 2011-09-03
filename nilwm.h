@@ -39,7 +39,7 @@ struct arg_t {
     void *v;
 };
 
-struct shortcut_t {
+struct key_t {
     unsigned int mod;
     xcb_keycode_t key;
     void (*func)(const struct arg_t *arg);
@@ -67,7 +67,7 @@ void recv_events();
 
 /* nilwm.c */
 void spawn(const struct arg_t *arg);
-int check_shortcut(unsigned int mod, xcb_keycode_t key);
+int check_key(unsigned int mod, xcb_keycode_t key);
 
 /* global variables in nilwm.c */
 extern struct nilwm_t nil_;

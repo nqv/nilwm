@@ -11,13 +11,10 @@
 
 static
 void handle_key_press(xcb_key_press_event_t *e) {
-    NIL_LOG("key press %d", e->detail);
-    check_shortcut(e->state, e->detail);
-}
-
-static
-void handle_key_release(xcb_key_release_event_t *e) {
-    NIL_LOG("key release %d", e->detail);
+    NIL_LOG("key press %d %d", e->state, e->detail);
+    if (check_key(e->state, e->detail)) {
+        return;
+    }
 }
 
 /**
@@ -27,6 +24,9 @@ static
 void handle_button_press(xcb_button_press_event_t *e) {
     NIL_LOG("mouse %d pressed: event %d, child %d (%d,%d)",
         e->detail, e->event, e->child, e->event_x, e->event_y);
+
+    /* if unhandled, forward the click to the application */
+    xcb_allow_events(nil_.con, XCB_ALLOW_REPLAY_POINTER, e->time);
 }
 
 static
@@ -100,9 +100,6 @@ void recv_events() {
         switch (e->response_type & ~0x80) {
         case XCB_KEY_PRESS:
             handle_key_press((xcb_key_press_event_t *)e);
-            break;
-        case XCB_KEY_RELEASE:
-            handle_key_release((xcb_key_release_event_t *)e);
             break;
         case XCB_BUTTON_PRESS:
             handle_button_press((xcb_button_press_event_t *)e);
