@@ -1,28 +1,70 @@
 /*
  * Nilwm - Lightweight X window manager.
- * See file LICENSE for license information.
+ * See LICENSE file for copyright and license details.
+ * vim:ts=4:sw=4:expandtab
  */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <xcb/xcb.h>
 #include <xcb/xcb_atom.h>
 #include "nilwm.h"
 #include "config.h"
 
-static xcb_connection_t *con_;
-static xcb_screen_t *scr_;
+struct nilwm_t nil_;
+
+void spawn(const struct arg_t *arg) {
+    pid_t pid;
+    pid = fork();
+    if (pid == 0) {   /* child process */
+        setsid();
+        execvp(((char **)arg->v)[0], (char **)arg->v);
+        NIL_ERR("execvp %s", ((char **)arg->v)[0]);
+        exit(1);
+    } else if (pid < 0) {
+        NIL_ERR("fork %d", pid);
+    }
+}
+
+int check_shortcut(unsigned int mod, xcb_keycode_t key) {
+    unsigned int i;
+    const struct shortcut_t *k;
+
+    for (i = 0; i < NIL_LEN(SHORTCUTS); ++i) {
+        k = &SHORTCUTS[i];
+        if (k->mod == mod && k->key == key) {
+            (*k->func)(&k->arg);
+            return 1;
+        }
+    }
+    return 0;
+}
 
 static
 int init_screen() {
-    /* get the first screen */
-    scr_ = xcb_setup_roots_iterator(xcb_get_setup(con_)).data;
-    NIL_LOG("screen %d (%dx%d)", scr_->root,
-            scr_->width_in_pixels, scr_->height_in_pixels);
+    uint32_t values;
+    xcb_void_cookie_t cookie;
 
+    /* get the first screen */
+    nil_.scr = xcb_setup_roots_iterator(xcb_get_setup(nil_.con)).data;
+    NIL_LOG("screen %d (%dx%d)", nil_.scr->root,
+            nil_.scr->width_in_pixels, nil_.scr->height_in_pixels);
+
+    /* Select for events, and at the same time, send SubstructureRedirect */
+    values = XCB_EVENT_MASK_EXPOSURE
+        | XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE
+        | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY;
+    cookie = xcb_change_window_attributes_checked(nil_.con, nil_.scr->root,
+        XCB_CW_EVENT_MASK, &values);
+    if (xcb_request_check(nil_.con, cookie)) {
+        NIL_ERR("Another window manager is already running %u", cookie.sequence);
+        return 1;
+    }
     /* TODO: set up all existing windows */
+    nil_.client_list = 0;
     return 0;
 }
 
@@ -33,125 +75,41 @@ int init_key() {
 
 static
 int init_mouse() {
-    xcb_grab_button(con_, 0, scr_->root,
+    xcb_grab_button(nil_.con, 0, nil_.scr->root,
         XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE,
-        XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, scr_->root,
+        XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, nil_.scr->root,
         XCB_NONE, 1 /* left mouse button */, MODKEY);
-    xcb_grab_button(con_, 0, scr_->root,
+    xcb_grab_button(nil_.con, 0, nil_.scr->root,
         XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE,
-        XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, scr_->root,
+        XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, nil_.scr->root,
         XCB_NONE, 2 /* middle mouse button */, MODKEY);
-    xcb_grab_button(con_, 0, scr_->root,
+    xcb_grab_button(nil_.con, 0, nil_.scr->root,
         XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE,
-        XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, scr_->root,
+        XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, nil_.scr->root,
         XCB_NONE, 3 /* right mouse button */, MODKEY);
     return 0;
 }
 
 static
-void destroy() {
-    xcb_flush(con_);
-    xcb_disconnect(con_);
-}
-
-static
-void handle_key_press(xcb_key_press_event_t *e) {
-    NIL_LOG("key press %d", e->detail);
-}
-
-static
-void handle_key_release(xcb_key_release_event_t *e) {
-    NIL_LOG("key releas %d", e->detail);
-}
-
-/**
- * Handle the ButtonPress event
- */
-static
-void handle_button_press(xcb_button_press_event_t *e) {
-    NIL_LOG("mouse %d pressed: event %d, child %d (%d,%d)",
-        e->detail, e->event, e->child, e->event_x, e->event_y);
-}
-
-static
-void handle_button_release(xcb_button_release_event_t *e) {
-    NIL_LOG("button releas %d", e->detail);
-}
-
-static
-void handle_motion_notify(xcb_motion_notify_event_t *e) {
-    NIL_LOG("button releas %d", e->detail);
-}
-
-static
-void handle_enter_notify(xcb_enter_notify_event_t *e) {
-    NIL_LOG("enter notify %d: event %d, child %d",
-        e->detail, e->event, e->child);
-}
-
-static
-void handle_unmap_notify(xcb_unmap_notify_event_t *e) {
-    NIL_LOG("unmap notify %d", e->window);
-}
-
-static
-void handle_map_request(xcb_map_request_event_t *e) {
-    NIL_LOG("map request %d", e->window);
-}
-
-/**
- * Events loop
- */
-static
-void recv_events() {
-    xcb_generic_event_t *e;
-    while ((e = xcb_wait_for_event(con_))) {
-        switch (e->response_type & ~0x80) {
-        case XCB_KEY_PRESS:
-            handle_key_press((xcb_key_press_event_t *)e);
-            break;
-        case XCB_KEY_RELEASE:
-            handle_key_release((xcb_key_release_event_t *)e);
-            break;
-        case XCB_BUTTON_PRESS:
-            handle_button_press((xcb_button_press_event_t *)e);
-            break;
-        case XCB_BUTTON_RELEASE:
-            handle_button_release((xcb_button_release_event_t *)e);
-            break;
-        case XCB_MOTION_NOTIFY:
-            handle_motion_notify((xcb_motion_notify_event_t *)e);
-            break;
-        case XCB_ENTER_NOTIFY:
-            handle_enter_notify((xcb_enter_notify_event_t *)e);
-            break;
-        case XCB_UNMAP_NOTIFY:
-            handle_unmap_notify((xcb_unmap_notify_event_t *)e);
-            break;
-        case XCB_MAP_REQUEST:
-            handle_map_request((xcb_map_request_event_t *)e);
-            break;
-        default:
-            /* Unknown event type, ignore it */
-            break;
-        }
-        /* Free the Generic Event */
-        free(e);
-    }
+void cleanup() {
+    xcb_flush(nil_.con);
+    xcb_disconnect(nil_.con);
 }
 
 int main(int argc, char **argv) {
+    (void)argc;
+    (void)argv;
     /* open connection with the server */
-    con_ = xcb_connect(NULL, NULL);
-    if (xcb_connection_has_error(con_)) {
+    nil_.con = xcb_connect(NULL, NULL);
+    if (xcb_connection_has_error(nil_.con)) {
         fprintf(stderr, "xcb_connect\n");
         exit(1);
     }
     if ((init_screen() < 0) || (init_key() < 0) || (init_mouse() < 0)) {
-        xcb_disconnect(con_);
+        xcb_disconnect(nil_.con);
         exit(1);
     }
     recv_events();
-    destroy();
+    cleanup();
     return 0;
 }

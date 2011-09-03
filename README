@@ -12,4 +12,5 @@ FEATURES
 COPYRIGHT
 Nilwm is distributed under the GPL license.
 
-
+DEBUG
+$ xinit /path/to/nilwm -- :1
