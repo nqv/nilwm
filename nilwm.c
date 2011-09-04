@@ -75,7 +75,7 @@ xcb_keysym_t get_keysym(xcb_keycode_t keycode, uint16_t state) {
     } else {
         return k1;
     }
-    NIL_LOG("no symbol: state=0x%x keycode=0x%x", state, keycode);
+    NIL_ERR("no symbol: state=0x%x keycode=0x%x", state, keycode);
     return XCB_NO_SYMBOL;
 }
 
@@ -119,12 +119,14 @@ void update_keys_mask() {
     for (i = 0; i < 8; ++i) {
         for (j = 0; j < reply->keycodes_per_modifier; ++j) {
             key = codes[i * reply->keycodes_per_modifier + j];
+            if (!key) {
+                continue;
+            }
             if (key == key_num) {
                 nil_.mask_numlock = (uint16_t)(1 << i);
             }
             if (key == key_shift) {
                 nil_.mask_shiftlock = (uint16_t)(1 << i);
-                break;
             }
             if (key == key_caps) {
                 nil_.mask_capslock = (uint16_t)(1 << i);
@@ -134,7 +136,7 @@ void update_keys_mask() {
             }
         }
     }
-    NIL_LOG("mask num=0x%x shift=0x%x caps=0x%x node=0x%x", nil_.mask_numlock,
+    NIL_LOG("mask num=0x%x shift=0x%x caps=0x%x mode=0x%x", nil_.mask_numlock,
         nil_.mask_shiftlock, nil_.mask_capslock, nil_.mask_modeswitch);
     free(reply);
 }
