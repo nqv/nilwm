@@ -12,10 +12,13 @@
 #define MOD_SHIFT           XCB_MOD_MASK_SHIFT
 #define MOD_CTRL            XCB_MOD_MASK_CONTROL
 
-const char *CMD_TERM[] = { "xterm", 0 };
+#define BORDER_WIDTH        1
+#define NUM_WORKSPACES      9
+
+static const char *CMD_TERM[] = { "xterm", 0 };
 
 /* Keysym X11/keysymdefs.h */
-const struct key_t KEYS[] = {
+static const struct key_t KEYS[] = {
     /* modifier                     key             function        argument */
     { MOD_KEY|MOD_CTRL,             XK_Return,      spawn,          { 0, CMD_TERM } },
     { MOD_KEY,                      XK_j,           spawn,          { 0, CMD_TERM } },

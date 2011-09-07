@@ -28,12 +28,14 @@ extern "C" {
 
 struct client_t {
     char *title;
-    int x, y;
-    unsigned int w, h;
-    unsigned int min_w, min_h;
-    unsigned int max_w, max_h;
+    int16_t x, y;
+    uint16_t w, h;
+    uint16_t min_w, min_h;
+    uint16_t max_w, max_h;
+    uint16_t border_width;
     unsigned int tags;
     unsigned int flags;
+    int map_state;
     xcb_window_t win;
     struct client_t *prev, *next;
 };
@@ -50,9 +52,19 @@ struct key_t {
     struct arg_t arg;
 };
 
+struct workspace_t {
+    struct client_t *client_first;
+    struct client_t *client_last;
+};
+
 struct config_t {
     unsigned int border_width;
     unsigned int border_color;
+    unsigned int num_workspaces;
+    unsigned int mod_key;
+
+    struct key_t *keys;
+    unsigned int keys_len;
 };
 
 struct nilwm_t {
@@ -63,13 +75,16 @@ struct nilwm_t {
     uint16_t mask_capslock;
     uint16_t mask_shiftlock;
     uint16_t mask_modeswitch;
-    struct client_t *client_list;
-    struct config_t *cfg;
+    struct workspace_t *ws;
+    unsigned int ws_idx;    /* current index of workspace */
 };
 
 /* client.c */
 void init_client(struct client_t *self);
-void add_client(struct client_t *self);
+void update_client(struct client_t *self);
+void add_client(struct client_t *self, struct workspace_t *ws);
+struct client_t *find_client(xcb_window_t win);
+struct client_t *remove_client(xcb_window_t win);
 
 /* event.c */
 void recv_events();
@@ -82,6 +97,7 @@ xcb_keycode_t get_keycode(xcb_keysym_t keysym);
 
 /* global variables in nilwm.c */
 extern struct nilwm_t nil_;
+extern const struct config_t cfg_;
 
 #ifdef __cplusplus
 }

@@ -7,10 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <unistd.h>
 #include <X11/keysym.h>
 #include "nilwm.h"
-#include "config.h"
 
 struct nilwm_t nil_;
 
@@ -31,8 +29,8 @@ int check_key(unsigned int mod, xcb_keysym_t key) {
     unsigned int i;
     const struct key_t *k;
 
-    for (i = 0; i < NIL_LEN(KEYS); ++i) {
-        k = &KEYS[i];
+    for (i = 0; i < cfg_.keys_len; ++i) {
+        k = &cfg_.keys[i];
         if (k->mod == mod && k->keysym == key) {
             (*k->func)(&k->arg);
             return 1;
@@ -152,9 +150,10 @@ int init_screen() {
             nil_.scr->width_in_pixels, nil_.scr->height_in_pixels);
 
     /* Select for events, and at the same time, send SubstructureRedirect */
-    values = XCB_EVENT_MASK_PROPERTY_CHANGE | XCB_EVENT_MASK_ENTER_WINDOW
-        | XCB_EVENT_MASK_STRUCTURE_NOTIFY
-        | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY;
+    values = XCB_EVENT_MASK_STRUCTURE_NOTIFY | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY
+        | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT | XCB_EVENT_MASK_PROPERTY_CHANGE
+        | XCB_EVENT_MASK_EXPOSURE;
+
     cookie = xcb_change_window_attributes_checked(nil_.con, nil_.scr->root,
         XCB_CW_EVENT_MASK, &values);
     if (xcb_request_check(nil_.con, cookie)) {
@@ -162,7 +161,6 @@ int init_screen() {
         return 1;
     }
     /* TODO: set up all existing windows */
-    nil_.client_list = 0;
     return 0;
 }
 
@@ -176,8 +174,8 @@ int init_key() {
     update_keys_mask();
 
     xcb_ungrab_key(nil_.con, XCB_GRAB_ANY, nil_.scr->root, XCB_MOD_MASK_ANY);
-    for (i = 0; i < NIL_LEN(KEYS); ++i) {
-        k = &KEYS[i];
+    for (i = 0; i < cfg_.keys_len; ++i) {
+        k = &cfg_.keys[i];
         key = get_keycode(k->keysym);
         if (key == 0) {
             continue;
@@ -196,15 +194,27 @@ int init_mouse() {
     xcb_grab_button(nil_.con, 0, nil_.scr->root,
         XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE,
         XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, nil_.scr->root,
-        XCB_NONE, XCB_BUTTON_INDEX_1 /* left mouse button */, MOD_KEY);
+        XCB_NONE, XCB_BUTTON_INDEX_1 /* left mouse button */, cfg_.mod_key);
     xcb_grab_button(nil_.con, 0, nil_.scr->root,
         XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE,
         XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, nil_.scr->root,
-        XCB_NONE, XCB_BUTTON_INDEX_2 /* middle mouse button */, MOD_KEY);
+        XCB_NONE, XCB_BUTTON_INDEX_2 /* middle mouse button */, cfg_.mod_key);
     xcb_grab_button(nil_.con, 0, nil_.scr->root,
         XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE,
         XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, nil_.scr->root,
-        XCB_NONE, XCB_BUTTON_INDEX_3 /* right mouse button */, MOD_KEY);
+        XCB_NONE, XCB_BUTTON_INDEX_3 /* right mouse button */, cfg_.mod_key);
+    return 0;
+}
+
+static
+int init_wm() {
+    nil_.ws = malloc(sizeof(struct workspace_t) * cfg_.num_workspaces);
+    if (nil_.ws == 0) {
+        NIL_ERR("out of mem %d", cfg_.num_workspaces);
+        return -1;
+    }
+    memset(nil_.ws, 0, sizeof(struct workspace_t) * cfg_.num_workspaces);
+    nil_.ws_idx = 0;
     return 0;
 }
 
@@ -217,19 +227,27 @@ void cleanup() {
     xcb_destroy_subwindows(nil_.con, nil_.scr->root);
     xcb_flush(nil_.con);
     xcb_disconnect(nil_.con);
+    if (nil_.ws) {
+        free(nil_.ws);
+    }
 }
 
 int main(int argc, char **argv) {
     (void)argc;
     (void)argv;
+
     /* open connection with the server */
     nil_.con = xcb_connect(NULL, NULL);
     if (xcb_connection_has_error(nil_.con)) {
-        fprintf(stderr, "xcb_connect\n");
+        NIL_ERR("xcb_connect %p", (void *)nil_.con);
         exit(1);
     }
     if ((init_screen() < 0) || (init_key() < 0) || (init_mouse() < 0)) {
         xcb_disconnect(nil_.con);
+        exit(1);
+    }
+    if (init_wm() < 0) {
+        cleanup();
         exit(1);
     }
     xcb_flush(nil_.con);
