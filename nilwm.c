@@ -209,7 +209,7 @@ int init_mouse() {
 static
 int init_wm() {
     nil_.ws = malloc(sizeof(struct workspace_t) * cfg_.num_workspaces);
-    if (nil_.ws == 0) {
+    if (!nil_.ws) {
         NIL_ERR("out of mem %d", cfg_.num_workspaces);
         return -1;
     }

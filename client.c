@@ -33,22 +33,28 @@ void init_client(struct client_t *self) {
     self->flags = 0;
 }
 
-void update_client(struct client_t *self) {
-    uint32_t vals[6];
+void config_client(struct client_t *self) {
+    uint32_t vals[2];
+    vals[0] = self->border_width;
+    vals[1] = XCB_STACK_MODE_ABOVE;
+    xcb_configure_window(nil_.con, self->win,
+        XCB_CONFIG_WINDOW_BORDER_WIDTH | XCB_CONFIG_WINDOW_STACK_MODE,
+        vals);
+    vals[0] = XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_FOCUS_CHANGE
+        | XCB_EVENT_MASK_PROPERTY_CHANGE | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY;
+    xcb_change_window_attributes(nil_.con, self->win, XCB_CW_EVENT_MASK, vals);
+}
+
+void move_resize_client(struct client_t *self) {
+    uint32_t vals[4];
     vals[0] = self->x;
     vals[1] = self->y;
     vals[2] = self->w;
     vals[3] = self->h;
-    vals[4] = self->border_width;
-    vals[5] = XCB_STACK_MODE_ABOVE;
-
     xcb_configure_window(nil_.con, self->win,
-        XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y |
-        XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT |
-        XCB_CONFIG_WINDOW_BORDER_WIDTH | XCB_CONFIG_WINDOW_STACK_MODE,
+        XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y
+        | XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT,
         vals);
-    xcb_set_input_focus(nil_.con, XCB_INPUT_FOCUS_POINTER_ROOT,
-        self->win, XCB_TIME_CURRENT_TIME);
 }
 
 /** Add a client to the first position of client list
@@ -67,13 +73,20 @@ struct client_t *find_client(xcb_window_t win) {
     struct client_t *c;
     unsigned int i;
 
+    /* search in current workspace first :) */
+    for (c = nil_.ws[nil_.ws_idx].client_first; c; c = c->next) {
+        if (c->win == win) {
+            return c;
+        }
+    }
     for (i = 0; i < cfg_.num_workspaces; ++i) {
-        c = nil_.ws[i].client_first;
-        while (c) {
+        if (i == nil_.ws_idx) {
+            continue;
+        }
+        for (c = nil_.ws[i].client_first; c; c = c->next) {
             if (c->win == win) {
                 return c;
             }
-            c = c->next;
         }
     }
     return 0;

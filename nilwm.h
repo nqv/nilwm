@@ -26,6 +26,15 @@
 extern "C" {
 #endif
 
+enum {
+    LAYOUT_TILE = 0,
+    LAYOUT_FREE
+};
+
+enum {
+    CLIENT_FLOAT    = 0x01,
+};
+
 struct client_t {
     char *title;
     int16_t x, y;
@@ -55,6 +64,7 @@ struct key_t {
 struct workspace_t {
     struct client_t *client_first;
     struct client_t *client_last;
+    int layout;
 };
 
 struct config_t {
@@ -62,9 +72,10 @@ struct config_t {
     unsigned int border_color;
     unsigned int num_workspaces;
     unsigned int mod_key;
-
     struct key_t *keys;
     unsigned int keys_len;
+
+    float mfact;    /* master */
 };
 
 struct nilwm_t {
@@ -81,10 +92,14 @@ struct nilwm_t {
 
 /* client.c */
 void init_client(struct client_t *self);
-void update_client(struct client_t *self);
+void config_client(struct client_t *self);
+void move_resize_client(struct client_t *self);
 void add_client(struct client_t *self, struct workspace_t *ws);
 struct client_t *find_client(xcb_window_t win);
 struct client_t *remove_client(xcb_window_t win);
+
+/* layout.c */
+void arrange(struct workspace_t *ws);
 
 /* event.c */
 void recv_events();
