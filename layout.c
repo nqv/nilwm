@@ -1,7 +1,6 @@
 /*
  * Nilwm - Lightweight X window manager.
  * See LICENSE file for copyright and license details.
- * vim:ts=4:sw=4:expandtab
  */
 
 #include "nilwm.h"
@@ -69,3 +68,4 @@ void arrange(struct workspace_t *self) {
     NIL_LOG("arrange workspace %d", self - nil_.ws);
     (*layouts_[self->layout].arrange)(self);
 }
+/* vim: set ts=4 sw=4 expandtab: */

@@ -1,7 +1,6 @@
 /*
  * Nilwm - Lightweight X window manager.
  * See LICENSE file for copyright and license details.
- * vim:ts=4:sw=4:expandtab
  */
 
 #ifndef NILWM_H_
@@ -118,3 +117,4 @@ extern const struct config_t cfg_;
 }
 #endif
 #endif /* NILWM_H_ */
+/* vim: set ts=4 sw=4 expandtab: */

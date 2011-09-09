@@ -1,7 +1,6 @@
 /*
  * Nilwm - Lightweight X window manager.
  * See LICENSE file for copyright and license details.
- * vim:ts=4:sw=4:expandtab
  */
 
 #include <X11/keysym.h>
@@ -19,3 +18,4 @@ const struct config_t cfg_ = {
 
     .mfact = MASTER_FACTOR,
 };
+/* vim: set ts=4 sw=4 expandtab: */

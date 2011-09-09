@@ -1,7 +1,6 @@
 /*
  * Nilwm - Lightweight X window manager.
  * See LICENSE file for copyright and license details.
- * vim:ts=4:sw=4:expandtab
  */
 
 #include <stdlib.h>
@@ -220,3 +219,4 @@ void recv_events() {
         free(e);
     }
 }
+/* vim: set ts=4 sw=4 expandtab: */
