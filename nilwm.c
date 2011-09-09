@@ -7,15 +7,24 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
+#include <sys/wait.h>
 #include <X11/keysym.h>
 #include "nilwm.h"
 
 struct nilwm_t nil_;
 
+static
+void handle_sigchld() {
+    while (0 < waitpid(-1, 0, WNOHANG)) {
+    }
+}
+
 void spawn(const struct arg_t *arg) {
     pid_t pid;
     pid = fork();
     if (pid == 0) {   /* child process */
+        close(xcb_get_file_descriptor(nil_.con));
         setsid();
         execvp(((char **)arg->v)[0], (char **)arg->v);
         NIL_ERR("execvp %s", ((char **)arg->v)[0]);
@@ -208,6 +217,13 @@ int init_mouse() {
 
 static
 int init_wm() {
+    struct sigaction act;
+
+    sigemptyset(&act.sa_mask);
+    act.sa_flags = 0;
+    act.sa_handler = &handle_sigchld;
+    sigaction(SIGCHLD, &act, 0);
+
     nil_.ws = malloc(sizeof(struct workspace_t) * cfg_.num_workspaces);
     if (!nil_.ws) {
         NIL_ERR("out of mem %d", cfg_.num_workspaces);

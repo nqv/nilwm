@@ -13,7 +13,7 @@ XCB_LIBS = $(shell pkg-config --libs xcb-keysyms)
 
 DEBUG_FLAGS = -O0 -g -DDEBUG
 
-CFLAGS += -std=c99 -pedantic -Wall -Wextra ${XCB_FLAGS}
+CFLAGS += -Wall -Wextra ${XCB_FLAGS}
 LDFLAGS += ${XCB_LIBS}
 
 all: ${PROJECT}
