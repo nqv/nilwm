@@ -17,5 +17,6 @@ const struct config_t cfg_ = {
     .keys_len = NIL_LEN(KEYS),
 
     .mfact = MASTER_FACTOR,
+    .font_name = FONT_NAME,
 };
 /* vim: set ts=4 sw=4 expandtab: */

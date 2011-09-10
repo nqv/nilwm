@@ -15,6 +15,8 @@
 #define NUM_WORKSPACES      9
 #define MASTER_FACTOR       0.55
 
+#define FONT_NAME           "-*-fixed-*-*-*-*-14-*-*-*-*-*-*-*"
+
 static const char *CMD_TERM[] = { "xterm", 0 };
 
 /* Keysym X11/keysymdefs.h */

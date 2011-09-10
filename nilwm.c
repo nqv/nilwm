@@ -12,6 +12,7 @@
 #include "nilwm.h"
 
 struct nilwm_t nil_;
+struct bar_t bar_;
 
 static
 void handle_sigchld() {
@@ -215,6 +216,82 @@ int init_mouse() {
 }
 
 static
+int init_font() {
+    xcb_void_cookie_t cookie;
+    xcb_generic_error_t *err;
+    xcb_list_fonts_with_info_cookie_t info_cookie;
+    xcb_list_fonts_with_info_reply_t *info;
+
+    /* open font */
+    nil_.font.id = xcb_generate_id(nil_.con);
+    cookie = xcb_open_font_checked(nil_.con, nil_.font.id,
+        strlen(cfg_.font_name), cfg_.font_name);
+    err = xcb_request_check(nil_.con, cookie);
+    if (err) {
+        NIL_ERR("open font: %d", err->error_code);
+        return -1;
+    }
+    info_cookie = xcb_list_fonts_with_info(nil_.con, 1,
+        strlen(cfg_.font_name), cfg_.font_name);
+    info = xcb_list_fonts_with_info_reply(nil_.con, info_cookie, 0);
+    if (!info) {
+        NIL_ERR("load font: %s", cfg_.font_name);
+        return -1;
+    }
+    nil_.font.height = info->font_ascent + info->font_descent;
+    free(info);
+    return 0;
+}
+
+static
+int init_bar() {
+    uint32_t vals[4];
+    xcb_void_cookie_t cookie;
+    xcb_generic_error_t *err;
+
+    /* create status bar window at the bottom */
+    bar_.w = nil_.scr->width_in_pixels;
+    bar_.h = nil_.font.height + 2;
+    bar_.x = 0;
+    bar_.y = nil_.scr->height_in_pixels - bar_.h;
+    bar_.win = xcb_generate_id(nil_.con);
+    vals[0] = XCB_BACK_PIXMAP_PARENT_RELATIVE;
+    vals[1] = 1;    /* override_redirect */
+    vals[2] = XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_EXPOSURE;
+    /* TODO: XCB_CW_CURSOR */
+    cookie = xcb_create_window_checked(nil_.con, nil_.scr->root_depth, bar_.win,
+        nil_.scr->root, bar_.x, bar_.y, bar_.w, bar_.h, 0, XCB_COPY_FROM_PARENT,
+        nil_.scr->root_visual, XCB_CW_BACK_PIXMAP | XCB_CW_OVERRIDE_REDIRECT
+        | XCB_CW_EVENT_MASK, vals);
+    err = xcb_request_check(nil_.con, cookie);
+    if (err) {
+        NIL_ERR("create window %d", err->error_code);
+        return -1;
+    }
+    vals[0] = XCB_STACK_MODE_ABOVE;
+    xcb_configure_window(nil_.con, bar_.win, XCB_CONFIG_WINDOW_STACK_MODE, &vals[0]);
+    cookie = xcb_map_window_checked(nil_.con, bar_.win);
+    err = xcb_request_check(nil_.con, cookie);
+    if (err) {
+        NIL_ERR("map window %d", err->error_code);
+        return -1;
+    }
+    /* graphic context */
+    bar_.gc = xcb_generate_id(nil_.con);
+    vals[0] = nil_.scr->black_pixel;
+    vals[1] = nil_.scr->white_pixel;
+    vals[2] = nil_.font.id;
+    cookie = xcb_create_gc_checked(nil_.con, bar_.gc, bar_.win, XCB_GC_FOREGROUND
+        | XCB_GC_BACKGROUND | XCB_GC_FONT, vals);
+    err = xcb_request_check(nil_.con, cookie);
+    if (err) {
+        NIL_ERR("map window %d", err->error_code);
+        return -1;
+    }
+    return 0;
+}
+
+static
 int init_wm() {
     struct sigaction act;
 
@@ -230,6 +307,12 @@ int init_wm() {
     }
     memset(nil_.ws, 0, sizeof(struct workspace_t) * cfg_.num_workspaces);
     nil_.ws_idx = 0;
+    /* workspace area (top) */
+    nil_.x = 0;
+    nil_.y = 0;
+    nil_.w = nil_.scr->width_in_pixels;
+    nil_.h = nil_.scr->height_in_pixels - bar_.h;
+    NIL_LOG("workspace %d,%d %ux%u", nil_.x, nil_.y, nil_.w, nil_.h);
     return 0;
 }
 
@@ -237,6 +320,9 @@ static
 void cleanup() {
     if (nil_.key_syms) {
         xcb_key_symbols_free(nil_.key_syms);
+    }
+    if (nil_.font.id) {
+        xcb_close_font(nil_.con, nil_.font.id);
     }
     xcb_ungrab_keyboard(nil_.con, XCB_TIME_CURRENT_TIME);
     xcb_destroy_subwindows(nil_.con, nil_.scr->root);
@@ -257,11 +343,13 @@ int main(int argc, char **argv) {
         NIL_ERR("xcb_connect %p", (void *)nil_.con);
         exit(1);
     }
+    /* 1st stage */
     if ((init_screen() < 0) || (init_key() < 0) || (init_mouse() < 0)) {
         xcb_disconnect(nil_.con);
         exit(1);
     }
-    if (init_wm() < 0) {
+    /* 2nd stage */
+    if ((init_font() < 0) || (init_bar() < 0) || (init_wm() < 0))  {
         cleanup();
         exit(1);
     }

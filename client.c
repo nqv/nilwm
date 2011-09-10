@@ -73,15 +73,14 @@ struct client_t *find_client(xcb_window_t win) {
     unsigned int i;
 
     /* search in current workspace first :) */
-    for (c = nil_.ws[nil_.ws_idx].client_first; c; c = c->next) {
-        if (c->win == win) {
-            return c;
+    for (i = nil_.ws_idx; i < cfg_.num_workspaces; --i) {
+        for (c = nil_.ws[i].client_first; c; c = c->next) {
+            if (c->win == win) {
+                return c;
+            }
         }
     }
-    for (i = 0; i < cfg_.num_workspaces; ++i) {
-        if (i == nil_.ws_idx) {
-            continue;
-        }
+    for (i = nil_.ws_idx + 1; i < cfg_.num_workspaces; ++i) {
         for (c = nil_.ws[i].client_first; c; c = c->next) {
             if (c->win == win) {
                 return c;

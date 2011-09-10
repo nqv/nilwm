@@ -53,6 +53,17 @@ void handle_enter_notify(xcb_enter_notify_event_t *e) {
         e->detail, e->event, e->child);
 }
 
+static
+void handle_expose(xcb_expose_event_t *e) {
+    NIL_LOG("expose win=%d %d,%d %ux%u", e->window, e->x, e->y, e->width, e->height);
+
+    if (e->count == 0 && e->window == bar_.win) {   /* init bar */
+        NIL_LOG("bar draw seq=%u", e->sequence);
+        draw_bar_text(&bar_, 8, 8, "Nguyen Quoc Viet");
+        return;
+    }
+}
+
 /** Handler for creating a new window
  * xterm size request is 1x1?
  */
@@ -62,6 +73,9 @@ void handle_create_notify(xcb_create_notify_event_t *e) {
 
     NIL_LOG("create notify win=%d par=%d @ %d,%d %ux%u", e->window,
         e->parent, e->x, e->y, e->width, e->height);
+    if (e->override_redirect) {
+        return;
+    }
     c = malloc(sizeof(struct client_t));
     if (!c) {
         NIL_ERR("out of mem %d", e->window);
@@ -74,6 +88,7 @@ void handle_create_notify(xcb_create_notify_event_t *e) {
     c->h = e->height;
     c->border_width = e->border_width;
     /* add into current workspace and re-arrange */
+    NIL_LOG("add client %d (%d)", c->win, nil_.ws_idx);
     add_client(c, &nil_.ws[nil_.ws_idx]);
 }
 
@@ -195,6 +210,7 @@ static const event_handler_t HANDLERS_[MAX_EVENTS_] = {
     [XCB_BUTTON_RELEASE]    = (event_handler_t)&handle_button_release,
     [XCB_MOTION_NOTIFY]     = (event_handler_t)&handle_motion_notify,
     [XCB_ENTER_NOTIFY]      = (event_handler_t)&handle_enter_notify,
+    [XCB_EXPOSE]            = (event_handler_t)&handle_expose,
     [XCB_CREATE_NOTIFY]     = (event_handler_t)&handle_create_notify,
     [XCB_DESTROY_NOTIFY]    = (event_handler_t)&handle_destroy_notify,
     [XCB_UNMAP_NOTIFY]      = (event_handler_t)&handle_unmap_notify,

@@ -25,26 +25,26 @@ void arrange_tile(struct workspace_t *self) {
         return;
     }
     if (!c->next) {     /* 1 window */
-        RSZ_CLIENT_(c, 0, 0, nil_.scr->width_in_pixels, nil_.scr->height_in_pixels);
+        RSZ_CLIENT_(c, nil_.x, nil_.y, nil_.w, nil_.h);
         NIL_LOG("arrange master %d,%d %ux%u", c->x, c->y, c->w, c->h);
         return;
     }
-    w = cfg_.mfact * nil_.scr->width_in_pixels;
-    RSZ_CLIENT_(c, 0, 0, w, nil_.scr->height_in_pixels);
+    w = cfg_.mfact * nil_.w;
+    RSZ_CLIENT_(c, nil_.x, nil_.y, w, nil_.h);
     /* next position */
     x = (int)w;
-    y = 0;
-    w = nil_.scr->width_in_pixels - w;
+    y = nil_.y;
+    w = nil_.w - w;
     /* get number of clients */
     n = 1;
     for (c = c->next->next; c; c = c->next) {
         ++n;
     }
-    h = nil_.scr->height_in_pixels / n;
+    h = nil_.h / n;
     NIL_LOG("arrange client (%d) %u,%u", n, w, h);
     for (c = self->client_first->next; c; c = c->next) {
         if (c == self->client_last) {
-            RSZ_CLIENT_(c, x, y, w, nil_.scr->height_in_pixels - y);
+            RSZ_CLIENT_(c, x, y, w, nil_.h + nil_.y - y);
         } else {
             RSZ_CLIENT_(c, x, y, w, h);
             y = c->y + c->h + 2 * c->border_width;

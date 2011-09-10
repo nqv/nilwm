@@ -1,6 +1,6 @@
 PROJECT = nilwm
 
-SOURCE = nilwm.c event.c client.c layout.c config.c
+SOURCE = nilwm.c config.c event.c client.c layout.c bar.c
 OBJECTS = ${SOURCE:.c=.o}
 DEBUG_OBJECTS = ${SOURCE:.c=.do}
 

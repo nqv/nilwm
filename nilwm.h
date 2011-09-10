@@ -35,17 +35,29 @@ enum {
 };
 
 struct client_t {
-    char *title;
+    xcb_window_t win;
     int16_t x, y;
     uint16_t w, h;
     uint16_t min_w, min_h;
     uint16_t max_w, max_h;
     uint16_t border_width;
+    char *title;
+    int map_state;
     unsigned int tags;
     unsigned int flags;
-    int map_state;
-    xcb_window_t win;
     struct client_t *prev, *next;
+};
+
+struct bar_t {
+    xcb_window_t win;
+    xcb_gcontext_t gc;
+    int16_t x, y;
+    uint16_t w, h;
+};
+
+struct font_t {
+    xcb_font_t id;
+    uint16_t height;
 };
 
 struct arg_t {
@@ -67,14 +79,15 @@ struct workspace_t {
 };
 
 struct config_t {
-    unsigned int border_width;
+    uint16_t border_width;
     unsigned int border_color;
     unsigned int num_workspaces;
-    unsigned int mod_key;
+    uint16_t mod_key;
     struct key_t *keys;
     unsigned int keys_len;
 
     float mfact;    /* master */
+    const char *font_name;
 };
 
 struct nilwm_t {
@@ -85,6 +98,9 @@ struct nilwm_t {
     uint16_t mask_capslock;
     uint16_t mask_shiftlock;
     uint16_t mask_modeswitch;
+    int16_t x, y;
+    uint16_t w, h;
+    struct font_t font;
     struct workspace_t *ws;
     unsigned int ws_idx;    /* current index of workspace */
 };
@@ -98,7 +114,10 @@ struct client_t *find_client(xcb_window_t win);
 struct client_t *remove_client(xcb_window_t win);
 
 /* layout.c */
-void arrange(struct workspace_t *ws);
+void arrange(struct workspace_t *self);
+
+/* bar.c */
+void draw_bar_text(struct bar_t *self, int x, int y, const char *str);
 
 /* event.c */
 void recv_events();
@@ -111,6 +130,7 @@ xcb_keycode_t get_keycode(xcb_keysym_t keysym);
 
 /* global variables in nilwm.c */
 extern struct nilwm_t nil_;
+extern struct bar_t bar_;
 extern const struct config_t cfg_;
 
 #ifdef __cplusplus
