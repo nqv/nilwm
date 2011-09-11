@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <xcb/xcb.h>
 #include <xcb/xcb_keysyms.h>
+#include <xcb/xcb_atom.h>
 
 #define NIL_QUOTE(x)            #x
 #define NIL_TOSTR(x)            NIL_QUOTE(x)
@@ -21,17 +22,23 @@
 #endif
 #define NIL_LEN(x)              (sizeof(x) / sizeof((x)[0]))
 
+#define NIL_HAS_FLAG(x, f)      ((x) & (f))
+#define NIL_SET_FLAG(x, f)      (x) |= (f)
+#define NIL_CLEAR_FLAG(x, f)    (x) &= ~(f)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-enum {
+enum {                          /* workspace layout type */
     LAYOUT_TILE = 0,
     LAYOUT_FREE
 };
 
-enum {
-    CLIENT_FLOAT    = 0x01,
+enum {                          /* client flags */
+    CLIENT_HIDEN        = 1 << 1,
+    CLIENT_FLOAT        = 1 << 2,
+    CLIENT_FIXED        = 1 << 3,
 };
 
 struct client_t {
@@ -90,6 +97,14 @@ struct config_t {
     const char *font_name;
 };
 
+struct atom_t {
+    xcb_atom_t net_supported;
+    xcb_atom_t net_wm_name;
+    xcb_atom_t wm_protocols;
+    xcb_atom_t wm_delete;
+    xcb_atom_t wm_state;
+};
+
 struct nilwm_t {
     xcb_connection_t *con;
     xcb_screen_t *scr;
@@ -101,6 +116,7 @@ struct nilwm_t {
     int16_t x, y;
     uint16_t w, h;
     struct font_t font;
+    struct atom_t atom;
     struct workspace_t *ws;
     unsigned int ws_idx;    /* current index of workspace */
 };
@@ -108,10 +124,11 @@ struct nilwm_t {
 /* client.c */
 void init_client(struct client_t *self);
 void config_client(struct client_t *self);
+void check_client_size(struct client_t *self);
 void move_resize_client(struct client_t *self);
 void add_client(struct client_t *self, struct workspace_t *ws);
 struct client_t *find_client(xcb_window_t win);
-struct client_t *remove_client(xcb_window_t win);
+struct client_t *remove_client(xcb_window_t win, struct workspace_t **ws);
 
 /* layout.c */
 void arrange(struct workspace_t *self);

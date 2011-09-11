@@ -15,8 +15,12 @@ struct nilwm_t nil_;
 struct bar_t bar_;
 
 static
-void handle_sigchld() {
-    while (0 < waitpid(-1, 0, WNOHANG)) {
+void handle_signal(int sig) {
+    switch (sig) {
+    case SIGCHLD:
+        while (0 < waitpid(-1, 0, WNOHANG)) {
+        }
+        break;
     }
 }
 
@@ -119,7 +123,7 @@ void update_keys_mask() {
     key_mode  = get_keycode(XK_Mode_switch);
 
     reply = xcb_get_modifier_mapping_reply(nil_.con,
-        xcb_get_modifier_mapping_unchecked(nil_.con), NULL);
+        xcb_get_modifier_mapping_unchecked(nil_.con), 0);
     codes = xcb_get_modifier_mapping_keycodes(reply);
 
     /* The number of keycodes in the list is 8 * keycodes_per_modifier */
@@ -160,14 +164,13 @@ int init_screen() {
 
     /* Select for events, and at the same time, send SubstructureRedirect */
     values = XCB_EVENT_MASK_STRUCTURE_NOTIFY | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY
-        | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT | XCB_EVENT_MASK_PROPERTY_CHANGE
-        | XCB_EVENT_MASK_EXPOSURE;
+        | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT | XCB_EVENT_MASK_PROPERTY_CHANGE;
 
     cookie = xcb_change_window_attributes_checked(nil_.con, nil_.scr->root,
         XCB_CW_EVENT_MASK, &values);
     if (xcb_request_check(nil_.con, cookie)) {
         NIL_ERR("Another window manager is already running %u", cookie.sequence);
-        return 1;
+        return -1;
     }
     /* TODO: set up all existing windows */
     return 0;
@@ -297,9 +300,10 @@ int init_wm() {
 
     sigemptyset(&act.sa_mask);
     act.sa_flags = 0;
-    act.sa_handler = &handle_sigchld;
+    act.sa_handler = &handle_signal;
     sigaction(SIGCHLD, &act, 0);
 
+    /* alloc workspaces */
     nil_.ws = malloc(sizeof(struct workspace_t) * cfg_.num_workspaces);
     if (!nil_.ws) {
         NIL_ERR("out of mem %d", cfg_.num_workspaces);
@@ -313,6 +317,13 @@ int init_wm() {
     nil_.w = nil_.scr->width_in_pixels;
     nil_.h = nil_.scr->height_in_pixels - bar_.h;
     NIL_LOG("workspace %d,%d %ux%u", nil_.x, nil_.y, nil_.w, nil_.h);
+
+    /* init atoms */
+    nil_.atom.net_supported = xcb_atom_get(nil_.con, "_NET_SUPPORTED");
+    nil_.atom.net_wm_name   = xcb_atom_get(nil_.con, "_NET_WM_NAME");
+    nil_.atom.wm_protocols  = xcb_atom_get(nil_.con, "WM_PROTOCOLS");
+    nil_.atom.wm_delete     = xcb_atom_get(nil_.con, "WM_DELETE_WINDOW");
+    nil_.atom.wm_state      = xcb_atom_get(nil_.con, "WM_STATE");
     return 0;
 }
 
@@ -338,18 +349,18 @@ int main(int argc, char **argv) {
     (void)argv;
 
     /* open connection with the server */
-    nil_.con = xcb_connect(NULL, NULL);
+    nil_.con = xcb_connect(0, 0);
     if (xcb_connection_has_error(nil_.con)) {
         NIL_ERR("xcb_connect %p", (void *)nil_.con);
         exit(1);
     }
     /* 1st stage */
-    if ((init_screen() < 0) || (init_key() < 0) || (init_mouse() < 0)) {
+    if ((init_screen() != 0) || (init_key() != 0) || (init_mouse() != 0)) {
         xcb_disconnect(nil_.con);
         exit(1);
     }
     /* 2nd stage */
-    if ((init_font() < 0) || (init_bar() < 0) || (init_wm() < 0))  {
+    if ((init_font() != 0) || (init_bar() != 0) || (init_wm() != 0))  {
         cleanup();
         exit(1);
     }

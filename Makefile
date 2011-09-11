@@ -8,8 +8,8 @@ VERSION = 0.1
 PREFIX ?= /usr/local
 MANPREFIX ?= ${PREFIX}/share/man
 
-XCB_FLAGS = $(shell pkg-config --cflags xcb-keysyms)
-XCB_LIBS = $(shell pkg-config --libs xcb-keysyms)
+XCB_FLAGS = $(shell pkg-config --cflags xcb-keysyms xcb-icccm xcb-atom)
+XCB_LIBS = $(shell pkg-config --libs xcb-keysyms xcb-icccm xcb-atom)
 
 DEBUG_FLAGS = -O0 -g -DDEBUG
 

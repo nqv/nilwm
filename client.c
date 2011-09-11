@@ -4,13 +4,18 @@
  */
 
 #include <stdlib.h>
+#include <xcb/xcb_icccm.h>
+#include <xcb/xcb_atom.h>
 #include "nilwm.h"
 
 /** Initialize a client after having window
  * @note client_t.win must be set previously.
  */
 void init_client(struct client_t *self) {
-    {   /* get window geometry */
+    xcb_size_hints_t sz;
+    xcb_get_property_cookie_t cookie;
+
+    if (self->w == 0 || self->h == 0) {         /* get window geometry */
         xcb_get_geometry_reply_t *geo;
         geo = xcb_get_geometry_reply(nil_.con,
             xcb_get_geometry(nil_.con, self->win), 0);
@@ -26,10 +31,35 @@ void init_client(struct client_t *self) {
             self->w = nil_.scr->width_in_pixels;
             self->h = nil_.scr->height_in_pixels;
         }
+        NIL_LOG("client x=%d y=%d w=%d h=%d", self->x, self->y, self->w, self->h);
     }
-    NIL_LOG("client x=%d y=%d w=%d h=%d", self->x, self->y, self->w, self->h);
-    self->tags = 0;
+    /* get size hints */
+    cookie = xcb_icccm_get_wm_normal_hints_unchecked(nil_.con, self->win);
+    if (!xcb_icccm_get_wm_normal_hints_reply(nil_.con, cookie, &sz, 0)) {
+        NIL_LOG("no normal hints %d", cookie.sequence);
+        self->min_w = self->min_h = self->max_w = self->max_h = 0;
+        self->flags = 0;
+        return;
+    }
+    if (NIL_HAS_FLAG(sz.flags, XCB_ICCCM_SIZE_HINT_P_MIN_SIZE)) {
+        self->min_w = sz.min_width;
+        self->min_h = sz.min_height;
+    } else {
+        self->min_w = self->min_h = 0;
+    }
+    if (NIL_HAS_FLAG(sz.flags, XCB_ICCCM_SIZE_HINT_P_MAX_SIZE)) {
+        self->max_w = sz.max_width;
+        self->max_h = sz.max_height;
+    } else {
+        self->max_w = self->max_h = 0;
+    }
     self->flags = 0;
+    if (self->min_w && self->min_h && self->max_w && self->max_h
+        && (self->min_w == self->max_w) && (self->min_h == self->max_h)) {
+        NIL_SET_FLAG(self->flags, CLIENT_FLOAT | CLIENT_FIXED);
+    }
+    NIL_LOG("hints min=%u,%u max=%u,%u flag=%u", self->min_w, self->min_h,
+        self->max_w, self->max_h, self->flags);
 }
 
 void config_client(struct client_t *self) {
@@ -42,6 +72,19 @@ void config_client(struct client_t *self) {
     vals[0] = XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_FOCUS_CHANGE
         | XCB_EVENT_MASK_PROPERTY_CHANGE | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY;
     xcb_change_window_attributes(nil_.con, self->win, XCB_CW_EVENT_MASK, vals);
+}
+
+void check_client_size(struct client_t *self) {
+    if (self->min_w && (self->w < self->min_w)) {
+        self->w = self->min_w;
+    } else if (self->max_w && (self->w > self->max_w)) {
+        self->w = self->max_w;
+    }
+    if (self->min_h && (self->h < self->min_h)) {
+        self->h = self->min_h;
+    } else if (self->max_h && (self->h > self->max_h)) {
+        self->h = self->max_h;
+    }
 }
 
 void move_resize_client(struct client_t *self) {
@@ -90,7 +133,7 @@ struct client_t *find_client(xcb_window_t win) {
     return 0;
 }
 
-struct client_t *remove_client(xcb_window_t win) {
+struct client_t *remove_client(xcb_window_t win, struct workspace_t **ws) {
     struct client_t *c, *p;
     unsigned int i;
 
@@ -106,6 +149,9 @@ struct client_t *remove_client(xcb_window_t win) {
                 }
                 if (c->next == 0) { /* is also the last one */
                     nil_.ws[i].client_last = 0;
+                }
+                if (ws) {   /* return the workspace affected */
+                    *ws = &nil_.ws[i];
                 }
                 return c;
             }

@@ -12,44 +12,63 @@ struct layout_handler_t {
     void (*arrange)(struct workspace_t *);
 };
 
+/** Tile windows
+ * Not arrange floating window
+ */
 static
 void arrange_tile(struct workspace_t *self) {
-    struct client_t *c;
+    struct client_t *m, *c;
     int16_t x, y;
     uint16_t w, h;
     unsigned int n;
 
     /* master */
-    c = self->client_first;
-    if (!c) {
+    for (m = self->client_first; m; m = m->next) {
+        if (!NIL_HAS_FLAG(m->flags, CLIENT_FLOAT)) {
+            break;
+        }
+    }
+    if (!m) {
         return;
     }
-    if (!c->next) {     /* 1 window */
-        RSZ_CLIENT_(c, nil_.x, nil_.y, nil_.w, nil_.h);
-        NIL_LOG("arrange master %d,%d %ux%u", c->x, c->y, c->w, c->h);
+    /* next client with is not float */
+    for (c = m->next; c; c = c->next) {
+        if (!NIL_HAS_FLAG(c->flags, CLIENT_FLOAT)) {
+            break;
+        }
+    }
+    if (!c) {           /* 1 window */
+        RSZ_CLIENT_(m, nil_.x, nil_.y, nil_.w, nil_.h);
+        NIL_LOG("arrange master %d,%d %ux%u", m->x, m->y, m->w, m->h);
         return;
     }
     w = cfg_.mfact * nil_.w;
-    RSZ_CLIENT_(c, nil_.x, nil_.y, w, nil_.h);
+    RSZ_CLIENT_(m, nil_.x, nil_.y, w, nil_.h);
     /* next position */
     x = (int)w;
     y = nil_.y;
     w = nil_.w - w;
     /* get number of clients */
-    n = 1;
-    for (c = c->next->next; c; c = c->next) {
-        ++n;
+    n = 1;  /* having at least 1 */
+    for (m = c->next; m; m = m->next) {
+        if (!NIL_HAS_FLAG(m->flags, CLIENT_FLOAT)) {
+            ++n;
+        }
     }
     h = nil_.h / n;
     NIL_LOG("arrange client (%d) %u,%u", n, w, h);
-    for (c = self->client_first->next; c; c = c->next) {
-        if (c == self->client_last) {
-            RSZ_CLIENT_(c, x, y, w, nil_.h + nil_.y - y);
-        } else {
-            RSZ_CLIENT_(c, x, y, w, h);
-            y = c->y + c->h + 2 * c->border_width;
+    do {
+        if (NIL_HAS_FLAG(c->flags, CLIENT_FLOAT)) {
+            continue;
         }
-    }
+        if (n == 1) {       /* last one */
+            RSZ_CLIENT_(c, x, y, w, nil_.h + nil_.y - y);
+            break;
+        }
+        RSZ_CLIENT_(c, x, y, w, h);
+        y = c->y + c->h + 2 * c->border_width;
+        --n;
+    } while (0 != (c = c->next));
 }
 
 static
@@ -66,6 +85,8 @@ static const struct layout_handler_t layouts_[] = {
 
 void arrange(struct workspace_t *self) {
     NIL_LOG("arrange workspace %d", self - nil_.ws);
-    (*layouts_[self->layout].arrange)(self);
+    if (layouts_[self->layout].arrange) {
+        (*layouts_[self->layout].arrange)(self);
+    }
 }
 /* vim: set ts=4 sw=4 expandtab: */
