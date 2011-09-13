@@ -12,9 +12,9 @@ COPYRIGHT
 Nilwm is distributed under the GPL license.
 
 DEBUG
-$ Xephyr -ac -br -noreset -screen 1024x768 :1 &
+$ Xephyr :1 -ac -br -noreset -screen 800x600 &
 $ DISPLAY=:1
-$ nilwm
+$ gdb nilwm-debug
 
 or
 $ xinit /path/to/nilwm -- :1

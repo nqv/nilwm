@@ -15,6 +15,9 @@
 #define NUM_WORKSPACES      9
 #define MASTER_FACTOR       0.55
 
+#define BORDER_COLOR        "#111111"
+#define FOCUS_COLOR         "#999999"
+
 #define FONT_NAME           "-*-fixed-*-*-*-*-14-*-*-*-*-*-*-*"
 
 static const char *CMD_TERM[] = { "xterm", 0 };

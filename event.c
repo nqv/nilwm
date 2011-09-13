@@ -49,8 +49,39 @@ void handle_motion_notify(xcb_motion_notify_event_t *e) {
  */
 static
 void handle_enter_notify(xcb_enter_notify_event_t *e) {
-    NIL_LOG("event: enter notify %d: event %d, child %d",
-        e->detail, e->event, e->child);
+    struct client_t *c;
+    struct workspace_t *ws;
+
+    NIL_LOG("event: enter notify %d: event=%d, child=%d mode=%d",
+        e->detail, e->event, e->child, e->mode);
+
+    if (e->mode == XCB_NOTIFY_MODE_NORMAL || e->mode == XCB_NOTIFY_MODE_UNGRAB) {
+        c = find_client(e->event, &ws);
+        if (!c) {
+            NIL_ERR("no client %d", e->event);
+            return;
+        }
+        NIL_SET_FLAG(c->flags, CLIENT_FOCUSED);
+        focus_client(c);
+        ws->focus = c;
+    }
+}
+
+/** Focused
+ */
+static
+void handle_focus_in(xcb_focus_in_event_t *e) {
+    struct client_t *c;
+    struct workspace_t *ws;
+
+    NIL_LOG("event: focus in %d: event=%d", e->detail, e->event);
+    c = find_client(e->event, &ws);
+    if (!c) {
+        NIL_ERR("no client %d", e->event);
+        return;
+    }
+    focus_client(c);
+    ws->focus = c;
 }
 
 /** This handler just for status bar initialization.
@@ -91,7 +122,6 @@ void handle_create_notify(xcb_create_notify_event_t *e) {
     c->h = e->height;
     c->border_width = e->border_width;
     /* add into current workspace and re-arrange */
-    NIL_LOG("add client %d (%d)", c->win, nil_.ws_idx);
     add_client(c, &nil_.ws[nil_.ws_idx]);
 }
 
@@ -112,11 +142,12 @@ void handle_destroy_notify(xcb_destroy_notify_event_t *e) {
         /* rearrange if is current workspace */
         if (ws == &nil_.ws[nil_.ws_idx]) {
             struct client_t *d;
-            arrange(&nil_.ws[nil_.ws_idx]);
+            arrange(ws);
             /* notify client size after rearrange */
-            for (d = nil_.ws[nil_.ws_idx].client_first; d; d = d->next) {
+            for (d = ws->first; d; d = d->next) {
                 move_resize_client(d);      /* update window configuration */
             }
+            xcb_flush(nil_.con);
         }
     }
     free(c);
@@ -127,7 +158,7 @@ void handle_unmap_notify(xcb_unmap_notify_event_t *e) {
     struct client_t *c;
 
     NIL_LOG("event: unmap notify %d", e->window);
-    c = find_client(e->window);
+    c = find_client(e->window, 0);
     if (!c) {
         NIL_ERR("no client %d", e->window);
         return;
@@ -140,7 +171,7 @@ void handle_map_notify(xcb_map_notify_event_t *e) {
     struct client_t *c;
 
     NIL_LOG("event: map notify %d", e->window);
-    c = find_client(e->window);
+    c = find_client(e->window, 0);
     if (!c) {
         NIL_ERR("no client %d", e->window);
         return;
@@ -186,7 +217,7 @@ void handle_map_request(xcb_map_request_event_t *e) {
     xcb_get_window_attributes_reply_t *reply;
     struct client_t *c;
 
-    NIL_LOG("map request win=%d", e->window);
+    NIL_LOG("event: map request win=%d", e->window);
     reply = xcb_get_window_attributes_reply(nil_.con,
         xcb_get_window_attributes_unchecked(nil_.con, e->window), 0);
     if (!reply) {
@@ -199,17 +230,18 @@ void handle_map_request(xcb_map_request_event_t *e) {
         return;
     }
     free(reply);
-    c = find_client(e->window);
+    c = find_client(e->window, 0);
     if (!c) {
         NIL_ERR("no client %d", e->window);
         return;
     }
     init_client(c);
+    NIL_SET_FLAG(c->flags, CLIENT_MAPPED);
     if (!NIL_HAS_FLAG(c->flags, CLIENT_FLOAT)) {    /* only rearrange if it's not float */
         struct client_t *d;
         arrange(&nil_.ws[nil_.ws_idx]);
         /* notify client size after rearrange */
-        for (d = nil_.ws[nil_.ws_idx].client_first; d; d = d->next) {
+        for (d = nil_.ws[nil_.ws_idx].first; d; d = d->next) {
             move_resize_client(d);      /* update window configuration */
         }
     } else {                            /* fix window size if needed */
@@ -223,15 +255,15 @@ void handle_map_request(xcb_map_request_event_t *e) {
     xcb_flush(nil_.con);
 }
 
-#define MAX_EVENTS_             (XCB_CONFIGURE_NOTIFY + 1)
 typedef void (*event_handler_t)(xcb_generic_event_t *);
-static const event_handler_t HANDLERS_[MAX_EVENTS_] = {
+static const event_handler_t HANDLERS_[] = {
     [XCB_KEY_PRESS]         = (event_handler_t)&handle_key_press,
     [XCB_KEY_RELEASE]       = (event_handler_t)&handle_key_release,
     [XCB_BUTTON_PRESS]      = (event_handler_t)&handle_button_press,
     [XCB_BUTTON_RELEASE]    = (event_handler_t)&handle_button_release,
     [XCB_MOTION_NOTIFY]     = (event_handler_t)&handle_motion_notify,
     [XCB_ENTER_NOTIFY]      = (event_handler_t)&handle_enter_notify,
+    [XCB_FOCUS_IN]          = (event_handler_t)&handle_focus_in,
     [XCB_EXPOSE]            = (event_handler_t)&handle_expose,
     [XCB_CREATE_NOTIFY]     = (event_handler_t)&handle_create_notify,
     [XCB_DESTROY_NOTIFY]    = (event_handler_t)&handle_destroy_notify,
@@ -248,7 +280,7 @@ void recv_events() {
     unsigned int type;
     while ((e = xcb_wait_for_event(nil_.con))) {
         type = e->response_type & ~0x80;
-        if (type < MAX_EVENTS_ && HANDLERS_[type] != 0) {
+        if (type < NIL_LEN(HANDLERS_) && HANDLERS_[type] != 0) {
             (*HANDLERS_[type])(e);
         } else {
             NIL_LOG("event: unknown type %u", type);

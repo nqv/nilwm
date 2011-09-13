@@ -107,6 +107,24 @@ xcb_keycode_t get_keycode(xcb_keysym_t keysym) {
 }
 
 static
+int get_color(const char *str, uint32_t *color)
+{
+    xcb_alloc_named_color_cookie_t cookie;
+    xcb_alloc_named_color_reply_t *reply;
+
+    cookie = xcb_alloc_named_color(nil_.con, nil_.scr->default_colormap,
+        strlen(str), str);
+    reply = xcb_alloc_named_color_reply(nil_.con, cookie, 0);
+    if (!reply) {
+        NIL_ERR("no color %s", str);
+        return -1;
+    }
+    *color = reply->pixel;
+    free(reply);
+    return 0;
+}
+
+static
 void update_keys_mask() {
     xcb_keycode_t key_num, key_shift, key_caps, key_mode, key;
     xcb_get_modifier_mapping_reply_t *reply;
@@ -215,6 +233,15 @@ int init_mouse() {
         XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE,
         XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, nil_.scr->root,
         XCB_NONE, XCB_BUTTON_INDEX_3 /* right mouse button */, cfg_.mod_key);
+    return 0;
+}
+
+static
+int init_color() {
+    if ((get_color(cfg_.border_color, &nil_.color.border) != 0)
+        || (get_color(cfg_.focus_color, &nil_.color.focus) != 0)) {
+        return -1;
+    }
     return 0;
 }
 
@@ -360,7 +387,8 @@ int main(int argc, char **argv) {
         exit(1);
     }
     /* 2nd stage */
-    if ((init_font() != 0) || (init_bar() != 0) || (init_wm() != 0))  {
+    if ((init_color() != 0) != (init_font() != 0) || (init_bar() != 0)
+        || (init_wm() != 0))  {
         cleanup();
         exit(1);
     }

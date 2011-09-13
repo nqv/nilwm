@@ -23,8 +23,8 @@ void arrange_tile(struct workspace_t *self) {
     unsigned int n;
 
     /* master */
-    for (m = self->client_first; m; m = m->next) {
-        if (!NIL_HAS_FLAG(m->flags, CLIENT_FLOAT)) {
+    for (m = self->first; m; m = m->next) {
+        if (NIL_HAS_FLAG(m->flags, CLIENT_MAPPED) && !NIL_HAS_FLAG(m->flags, CLIENT_FLOAT)) {
             break;
         }
     }
@@ -33,13 +33,12 @@ void arrange_tile(struct workspace_t *self) {
     }
     /* next client with is not float */
     for (c = m->next; c; c = c->next) {
-        if (!NIL_HAS_FLAG(c->flags, CLIENT_FLOAT)) {
+        if (NIL_HAS_FLAG(m->flags, CLIENT_MAPPED) && !NIL_HAS_FLAG(c->flags, CLIENT_FLOAT)) {
             break;
         }
     }
     if (!c) {           /* 1 window */
         RSZ_CLIENT_(m, nil_.x, nil_.y, nil_.w, nil_.h);
-        NIL_LOG("arrange master %d,%d %ux%u", m->x, m->y, m->w, m->h);
         return;
     }
     w = cfg_.mfact * nil_.w;
@@ -51,14 +50,13 @@ void arrange_tile(struct workspace_t *self) {
     /* get number of clients */
     n = 1;  /* having at least 1 */
     for (m = c->next; m; m = m->next) {
-        if (!NIL_HAS_FLAG(m->flags, CLIENT_FLOAT)) {
+        if (NIL_HAS_FLAG(m->flags, CLIENT_MAPPED) && !NIL_HAS_FLAG(m->flags, CLIENT_FLOAT)) {
             ++n;
         }
     }
     h = nil_.h / n;
-    NIL_LOG("arrange client (%d) %u,%u", n, w, h);
     do {
-        if (NIL_HAS_FLAG(c->flags, CLIENT_FLOAT)) {
+        if (!NIL_HAS_FLAG(c->flags, CLIENT_MAPPED) || NIL_HAS_FLAG(c->flags, CLIENT_FLOAT)) {
             continue;
         }
         if (n == 1) {       /* last one */

@@ -56,7 +56,7 @@ void init_client(struct client_t *self) {
     self->flags = 0;
     if (self->min_w && self->min_h && self->max_w && self->max_h
         && (self->min_w == self->max_w) && (self->min_h == self->max_h)) {
-        NIL_SET_FLAG(self->flags, CLIENT_FLOAT | CLIENT_FIXED);
+        NIL_SET_FLAG(self->flags, CLIENT_FLOAT | CLIENT_FIXED); /* force float */
     }
     NIL_LOG("hints min=%u,%u max=%u,%u flag=%u", self->min_w, self->min_h,
         self->max_w, self->max_h, self->flags);
@@ -66,9 +66,10 @@ void config_client(struct client_t *self) {
     uint32_t vals[2];
     vals[0] = self->border_width;
     vals[1] = XCB_STACK_MODE_ABOVE;
-    xcb_configure_window(nil_.con, self->win,
-        XCB_CONFIG_WINDOW_BORDER_WIDTH | XCB_CONFIG_WINDOW_STACK_MODE,
-        vals);
+    xcb_configure_window(nil_.con, self->win, XCB_CONFIG_WINDOW_BORDER_WIDTH
+        | XCB_CONFIG_WINDOW_STACK_MODE, vals);
+    vals[0] = nil_.color.border;
+    xcb_change_window_attributes(nil_.con, self->win, XCB_CW_BORDER_PIXEL, vals);
     vals[0] = XCB_EVENT_MASK_ENTER_WINDOW | XCB_EVENT_MASK_FOCUS_CHANGE
         | XCB_EVENT_MASK_PROPERTY_CHANGE | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY;
     xcb_change_window_attributes(nil_.con, self->win, XCB_CW_EVENT_MASK, vals);
@@ -102,30 +103,36 @@ void move_resize_client(struct client_t *self) {
 /** Add a client to the first position of client list
  */
 void add_client(struct client_t *self, struct workspace_t *ws) {
-    if (ws->client_first) {
-        self->next = ws->client_first;
+    if (ws->first) {
+        self->next = ws->first;
     } else {
         self->next = 0;
-        ws->client_last = self;
+        ws->last = self;
     }
-    ws->client_first = self;
+    ws->first = self;
 }
 
-struct client_t *find_client(xcb_window_t win) {
+struct client_t *find_client(xcb_window_t win, struct workspace_t **ws) {
     struct client_t *c;
     unsigned int i;
 
     /* search in current workspace first :) */
     for (i = nil_.ws_idx; i < cfg_.num_workspaces; --i) {
-        for (c = nil_.ws[i].client_first; c; c = c->next) {
+        for (c = nil_.ws[i].first; c; c = c->next) {
             if (c->win == win) {
+                if (ws) {
+                    *ws = &nil_.ws[i];
+                }
                 return c;
             }
         }
     }
     for (i = nil_.ws_idx + 1; i < cfg_.num_workspaces; ++i) {
-        for (c = nil_.ws[i].client_first; c; c = c->next) {
+        for (c = nil_.ws[i].first; c; c = c->next) {
             if (c->win == win) {
+                if (ws) {
+                    *ws = &nil_.ws[i];
+                }
                 return c;
             }
         }
@@ -139,16 +146,16 @@ struct client_t *remove_client(xcb_window_t win, struct workspace_t **ws) {
 
     for (i = 0; i < cfg_.num_workspaces; ++i) {
         p = 0;
-        c = nil_.ws[i].client_first;
+        c = nil_.ws[i].first;
         while (c) {
             if (c->win == win) {
                 if (p) {
                     p->next = c->next;
                 } else {    /* is the first window */
-                    nil_.ws[i].client_first = c->next;
+                    nil_.ws[i].first = c->next;
                 }
                 if (c->next == 0) { /* is also the last one */
-                    nil_.ws[i].client_last = 0;
+                    nil_.ws[i].last = p;
                 }
                 if (ws) {   /* return the workspace affected */
                     *ws = &nil_.ws[i];
@@ -163,7 +170,23 @@ struct client_t *remove_client(xcb_window_t win, struct workspace_t **ws) {
 }
 
 void focus_client(struct client_t *self) {
+    uint32_t vals[1];
 
+    vals[0] = nil_.color.focus;
+    xcb_change_window_attributes(nil_.con, self->win, XCB_CW_BORDER_PIXEL, vals);
+    if (!NIL_HAS_FLAG(self->flags, CLIENT_FOCUSED)) {
+        xcb_set_input_focus(nil_.con, XCB_INPUT_FOCUS_POINTER_ROOT, self->win,
+            XCB_CURRENT_TIME);
+        NIL_SET_FLAG(self->flags, CLIENT_FOCUSED);
+    }
+}
+
+void unfocus_client(struct client_t *self) {
+    uint32_t vals[1];
+
+    vals[0] = nil_.color.border;
+    xcb_change_window_attributes(nil_.con, self->win, XCB_CW_BORDER_PIXEL, vals);
+    NIL_CLEAR_FLAG(self->flags, CLIENT_FOCUSED);
 }
 
 void hide_client(struct client_t *self) {

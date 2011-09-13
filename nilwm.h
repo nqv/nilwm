@@ -36,9 +36,10 @@ enum {                          /* workspace layout type */
 };
 
 enum {                          /* client flags */
-    CLIENT_HIDEN        = 1 << 1,
-    CLIENT_FLOAT        = 1 << 2,
-    CLIENT_FIXED        = 1 << 3,
+    CLIENT_MAPPED       = 1 << 1,   /* displayed */
+    CLIENT_FLOAT        = 1 << 2,   /* float mode */
+    CLIENT_FIXED        = 1 << 3,   /* size fixed (min = max) */
+    CLIENT_FOCUSED      = 1 << 4,   /* already focused */
 };
 
 struct client_t {
@@ -67,6 +68,11 @@ struct font_t {
     uint16_t height;
 };
 
+struct color_t {
+    uint32_t border;
+    uint32_t focus;
+};
+
 struct arg_t {
     int c;
     void *v;
@@ -80,14 +86,14 @@ struct key_t {
 };
 
 struct workspace_t {
-    struct client_t *client_first;
-    struct client_t *client_last;
+    struct client_t *first;
+    struct client_t *last;
+    struct client_t *focus;
     int layout;
 };
 
 struct config_t {
     uint16_t border_width;
-    unsigned int border_color;
     unsigned int num_workspaces;
     uint16_t mod_key;
     struct key_t *keys;
@@ -95,6 +101,9 @@ struct config_t {
 
     float mfact;    /* master */
     const char *font_name;
+
+    const char *border_color;
+    const char *focus_color;
 };
 
 struct atom_t {
@@ -115,6 +124,7 @@ struct nilwm_t {
     uint16_t mask_modeswitch;
     int16_t x, y;
     uint16_t w, h;
+    struct color_t color;
     struct font_t font;
     struct atom_t atom;
     struct workspace_t *ws;
@@ -127,8 +137,9 @@ void config_client(struct client_t *self);
 void check_client_size(struct client_t *self);
 void move_resize_client(struct client_t *self);
 void add_client(struct client_t *self, struct workspace_t *ws);
-struct client_t *find_client(xcb_window_t win);
+struct client_t *find_client(xcb_window_t win, struct workspace_t **ws);
 struct client_t *remove_client(xcb_window_t win, struct workspace_t **ws);
+void focus_client(struct client_t *self);
 
 /* layout.c */
 void arrange(struct workspace_t *self);

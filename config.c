@@ -18,5 +18,8 @@ const struct config_t cfg_ = {
 
     .mfact = MASTER_FACTOR,
     .font_name = FONT_NAME,
+
+    .border_color = BORDER_COLOR,
+    .focus_color = FOCUS_COLOR,
 };
 /* vim: set ts=4 sw=4 expandtab: */
