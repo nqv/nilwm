@@ -15,8 +15,8 @@
 #define NUM_WORKSPACES      9
 #define MASTER_FACTOR       0.55
 
-#define BORDER_COLOR        "#111111"
-#define FOCUS_COLOR         "#999999"
+#define BORDER_COLOR        "blue"
+#define FOCUS_COLOR         "red"
 
 #define FONT_NAME           "-*-fixed-*-*-*-*-14-*-*-*-*-*-*-*"
 
@@ -26,8 +26,8 @@ static const char *CMD_TERM[] = { "xterm", 0 };
 static const struct key_t KEYS[] = {
     /* modifier                     key             function        argument */
     { MOD_KEY|MOD_CTRL,             XK_Return,      spawn,          { 0, CMD_TERM } },
-    { MOD_KEY,                      XK_j,           spawn,          { 0, CMD_TERM } },
-    { MOD_KEY,                      XK_k,           spawn,          { 0, CMD_TERM } },
+    { MOD_KEY,                      XK_j,           focus,          { +1, 0 } },
+    { MOD_KEY,                      XK_k,           focus,          { -1, 0 } },
 };
 
 #endif /* NILWM_CONFIG_H_ */

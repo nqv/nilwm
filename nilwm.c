@@ -38,6 +38,10 @@ void spawn(const struct arg_t *arg) {
     }
 }
 
+void focus(const struct arg_t *arg) {
+    change_focus(arg->c);
+}
+
 int check_key(unsigned int mod, xcb_keysym_t key) {
     unsigned int i;
     const struct key_t *k;

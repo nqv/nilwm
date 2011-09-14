@@ -20,6 +20,8 @@
 #else
 # define NIL_LOG(fmt, ...)
 #endif
+#define NIL_INLINE              inline __attribute__((always_inline))
+#define NIL_UNUSED(x)           _ ## x __attribute__((unused))
 #define NIL_LEN(x)              (sizeof(x) / sizeof((x)[0]))
 
 #define NIL_HAS_FLAG(x, f)      ((x) & (f))
@@ -40,6 +42,12 @@ enum {                          /* client flags */
     CLIENT_FLOAT        = 1 << 2,   /* float mode */
     CLIENT_FIXED        = 1 << 3,   /* size fixed (min = max) */
     CLIENT_FOCUSED      = 1 << 4,   /* already focused */
+};
+
+enum {                          /* for focus/swap */
+    NAV_PREV    = -1,
+    NAV_MASTER  = 0,
+    NAV_NEXT    = 1,
 };
 
 struct client_t {
@@ -140,9 +148,11 @@ void add_client(struct client_t *self, struct workspace_t *ws);
 struct client_t *find_client(xcb_window_t win, struct workspace_t **ws);
 struct client_t *remove_client(xcb_window_t win, struct workspace_t **ws);
 void focus_client(struct client_t *self);
+void blur_client(struct client_t *self);
 
 /* layout.c */
-void arrange(struct workspace_t *self);
+void arrange();
+void change_focus(int nav);
 
 /* bar.c */
 void draw_bar_text(struct bar_t *self, int x, int y, const char *str);
@@ -152,6 +162,7 @@ void recv_events();
 
 /* nilwm.c */
 void spawn(const struct arg_t *arg);
+void focus(const struct arg_t *arg);
 int check_key(unsigned int mod, xcb_keysym_t key);
 xcb_keysym_t get_keysym(xcb_keycode_t keycode, uint16_t state);
 xcb_keycode_t get_keycode(xcb_keysym_t keysym);

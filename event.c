@@ -13,6 +13,7 @@ void handle_key_press(xcb_key_press_event_t *e) {
 
     sym = get_keysym(e->detail, e->state);
     if (check_key(e->state, sym)) {
+        xcb_flush(nil_.con);
         return;
     }
 }
@@ -52,19 +53,23 @@ void handle_enter_notify(xcb_enter_notify_event_t *e) {
     struct client_t *c;
     struct workspace_t *ws;
 
-    NIL_LOG("event: enter notify %d: event=%d, child=%d mode=%d",
-        e->detail, e->event, e->child, e->mode);
-
+    NIL_LOG("event: enter notify win=%d, child=%d mode=%d",
+        e->event, e->child, e->mode);
+#if 0
     if (e->mode == XCB_NOTIFY_MODE_NORMAL || e->mode == XCB_NOTIFY_MODE_UNGRAB) {
         c = find_client(e->event, &ws);
         if (!c) {
             NIL_ERR("no client %d", e->event);
             return;
         }
-        NIL_SET_FLAG(c->flags, CLIENT_FOCUSED);
+        if (ws->focus) {
+            blur_client(ws->focus);
+        }
         focus_client(c);
         ws->focus = c;
+        xcb_flush(nil_.con);
     }
+#endif
 }
 
 /** Focused
@@ -74,7 +79,7 @@ void handle_focus_in(xcb_focus_in_event_t *e) {
     struct client_t *c;
     struct workspace_t *ws;
 
-    NIL_LOG("event: focus in %d: event=%d", e->detail, e->event);
+    NIL_LOG("event: focus in win=%d", e->event);
     c = find_client(e->event, &ws);
     if (!c) {
         NIL_ERR("no client %d", e->event);
@@ -82,6 +87,24 @@ void handle_focus_in(xcb_focus_in_event_t *e) {
     }
     focus_client(c);
     ws->focus = c;
+    xcb_flush(nil_.con);
+}
+
+/** Blured
+ */
+static
+void handle_focus_out(xcb_focus_out_event_t *e) {
+    struct client_t *c;
+    struct workspace_t *ws;
+
+    NIL_LOG("event: focus out win=%d", e->event);
+    c = find_client(e->event, &ws);
+    if (!c) {
+        NIL_ERR("no client %d", e->event);
+        return;
+    }
+    blur_client(c);
+    xcb_flush(nil_.con);
 }
 
 /** This handler just for status bar initialization.
@@ -142,7 +165,7 @@ void handle_destroy_notify(xcb_destroy_notify_event_t *e) {
         /* rearrange if is current workspace */
         if (ws == &nil_.ws[nil_.ws_idx]) {
             struct client_t *d;
-            arrange(ws);
+            arrange();
             /* notify client size after rearrange */
             for (d = ws->first; d; d = d->next) {
                 move_resize_client(d);      /* update window configuration */
@@ -239,7 +262,7 @@ void handle_map_request(xcb_map_request_event_t *e) {
     NIL_SET_FLAG(c->flags, CLIENT_MAPPED);
     if (!NIL_HAS_FLAG(c->flags, CLIENT_FLOAT)) {    /* only rearrange if it's not float */
         struct client_t *d;
-        arrange(&nil_.ws[nil_.ws_idx]);
+        arrange();
         /* notify client size after rearrange */
         for (d = nil_.ws[nil_.ws_idx].first; d; d = d->next) {
             move_resize_client(d);      /* update window configuration */
@@ -249,9 +272,8 @@ void handle_map_request(xcb_map_request_event_t *e) {
         move_resize_client(c);
     }
     config_client(c);
-    xcb_set_input_focus(nil_.con, XCB_INPUT_FOCUS_POINTER_ROOT,
-        c->win, XCB_TIME_CURRENT_TIME);
     xcb_map_window(nil_.con, c->win);
+    xcb_set_input_focus(nil_.con, XCB_INPUT_FOCUS_POINTER_ROOT, c->win, XCB_CURRENT_TIME);
     xcb_flush(nil_.con);
 }
 
@@ -264,6 +286,7 @@ static const event_handler_t HANDLERS_[] = {
     [XCB_MOTION_NOTIFY]     = (event_handler_t)&handle_motion_notify,
     [XCB_ENTER_NOTIFY]      = (event_handler_t)&handle_enter_notify,
     [XCB_FOCUS_IN]          = (event_handler_t)&handle_focus_in,
+    [XCB_FOCUS_OUT]         = (event_handler_t)&handle_focus_out,
     [XCB_EXPOSE]            = (event_handler_t)&handle_expose,
     [XCB_CREATE_NOTIFY]     = (event_handler_t)&handle_create_notify,
     [XCB_DESTROY_NOTIFY]    = (event_handler_t)&handle_destroy_notify,

@@ -169,21 +169,23 @@ struct client_t *remove_client(xcb_window_t win, struct workspace_t **ws) {
     return 0;
 }
 
+/** Change border color
+ */
 void focus_client(struct client_t *self) {
     uint32_t vals[1];
 
+    NIL_LOG("focus %d", self->win);
     vals[0] = nil_.color.focus;
     xcb_change_window_attributes(nil_.con, self->win, XCB_CW_BORDER_PIXEL, vals);
-    if (!NIL_HAS_FLAG(self->flags, CLIENT_FOCUSED)) {
-        xcb_set_input_focus(nil_.con, XCB_INPUT_FOCUS_POINTER_ROOT, self->win,
-            XCB_CURRENT_TIME);
-        NIL_SET_FLAG(self->flags, CLIENT_FOCUSED);
-    }
+    NIL_SET_FLAG(self->flags, CLIENT_FOCUSED);
 }
 
-void unfocus_client(struct client_t *self) {
+/** Change border color
+ */
+void blur_client(struct client_t *self) {
     uint32_t vals[1];
 
+    NIL_LOG("unfocus %d", self->win);
     vals[0] = nil_.color.border;
     xcb_change_window_attributes(nil_.con, self->win, XCB_CW_BORDER_PIXEL, vals);
     NIL_CLEAR_FLAG(self->flags, CLIENT_FOCUSED);
