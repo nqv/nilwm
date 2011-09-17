@@ -149,10 +149,11 @@ struct client_t *find_client(xcb_window_t win, struct workspace_t **ws);
 struct client_t *remove_client(xcb_window_t win, struct workspace_t **ws);
 void focus_client(struct client_t *self);
 void blur_client(struct client_t *self);
+void swap_client(struct client_t *self, struct client_t *c);
 
 /* layout.c */
 void arrange();
-void change_focus(int nav);
+void change_focus(int dir);
 
 /* bar.c */
 void draw_bar_text(struct bar_t *self, int x, int y, const char *str);

@@ -26,6 +26,7 @@ static const char *CMD_TERM[] = { "xterm", 0 };
 static const struct key_t KEYS[] = {
     /* modifier                     key             function        argument */
     { MOD_KEY|MOD_CTRL,             XK_Return,      spawn,          { 0, CMD_TERM } },
+    { MOD_KEY,                      XK_Return,      focus,          { 0, 0 } },
     { MOD_KEY,                      XK_j,           focus,          { +1, 0 } },
     { MOD_KEY,                      XK_k,           focus,          { -1, 0 } },
 };

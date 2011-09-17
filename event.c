@@ -85,6 +85,12 @@ void handle_focus_in(xcb_focus_in_event_t *e) {
         NIL_ERR("no client %d", e->event);
         return;
     }
+    if (c == ws->focus) {
+        return;
+    }
+    if (ws->focus) {
+        blur_client(ws->focus);
+    }
     focus_client(c);
     ws->focus = c;
     xcb_flush(nil_.con);
@@ -94,17 +100,7 @@ void handle_focus_in(xcb_focus_in_event_t *e) {
  */
 static
 void handle_focus_out(xcb_focus_out_event_t *e) {
-    struct client_t *c;
-    struct workspace_t *ws;
-
     NIL_LOG("event: focus out win=%d", e->event);
-    c = find_client(e->event, &ws);
-    if (!c) {
-        NIL_ERR("no client %d", e->event);
-        return;
-    }
-    blur_client(c);
-    xcb_flush(nil_.con);
 }
 
 /** This handler just for status bar initialization.
@@ -186,7 +182,7 @@ void handle_unmap_notify(xcb_unmap_notify_event_t *e) {
         NIL_ERR("no client %d", e->window);
         return;
     }
-    c->map_state = XCB_MAP_STATE_UNMAPPED;
+    NIL_CLEAR_FLAG(c->flags, CLIENT_MAPPED);
 }
 
 static
@@ -199,7 +195,7 @@ void handle_map_notify(xcb_map_notify_event_t *e) {
         NIL_ERR("no client %d", e->window);
         return;
     }
-    c->map_state = XCB_MAP_STATE_VIEWABLE;
+    NIL_SET_FLAG(c->flags, CLIENT_MAPPED);
 }
 
 /** Handler for changing position, size

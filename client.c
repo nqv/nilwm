@@ -104,11 +104,13 @@ void move_resize_client(struct client_t *self) {
  */
 void add_client(struct client_t *self, struct workspace_t *ws) {
     if (ws->first) {
+        ws->first->prev = self;
         self->next = ws->first;
     } else {
         self->next = 0;
         ws->last = self;
     }
+    self->prev = 0;
     ws->first = self;
 }
 
@@ -141,32 +143,40 @@ struct client_t *find_client(xcb_window_t win, struct workspace_t **ws) {
 }
 
 struct client_t *remove_client(xcb_window_t win, struct workspace_t **ws) {
-    struct client_t *c, *p;
+    struct client_t *c;
     unsigned int i;
 
     for (i = 0; i < cfg_.num_workspaces; ++i) {
-        p = 0;
-        c = nil_.ws[i].first;
-        while (c) {
+        for (c = nil_.ws[i].first; c; c = c->next) {
             if (c->win == win) {
-                if (p) {
-                    p->next = c->next;
+                if (c->prev) {
+                    c->prev->next = c->next;
                 } else {    /* is the first window */
                     nil_.ws[i].first = c->next;
                 }
-                if (c->next == 0) { /* is also the last one */
-                    nil_.ws[i].last = p;
+                if (c->next) {
+                    c->next->prev = c->prev;
+                } else {    /* is the last one */
+                    nil_.ws[i].last = c->prev;
                 }
                 if (ws) {   /* return the workspace affected */
                     *ws = &nil_.ws[i];
                 }
                 return c;
             }
-            p = c;
-            c = c->next;
         }
     }
     return 0;
+}
+
+/** Swap window, keep other properties
+ */
+void swap_client(struct client_t *self, struct client_t *c) {
+    xcb_window_t win;
+
+    win = self->win;
+    self->win = c->win;
+    c->win = win;
 }
 
 /** Change border color
@@ -174,7 +184,6 @@ struct client_t *remove_client(xcb_window_t win, struct workspace_t **ws) {
 void focus_client(struct client_t *self) {
     uint32_t vals[1];
 
-    NIL_LOG("focus %d", self->win);
     vals[0] = nil_.color.focus;
     xcb_change_window_attributes(nil_.con, self->win, XCB_CW_BORDER_PIXEL, vals);
     NIL_SET_FLAG(self->flags, CLIENT_FOCUSED);
@@ -185,7 +194,6 @@ void focus_client(struct client_t *self) {
 void blur_client(struct client_t *self) {
     uint32_t vals[1];
 
-    NIL_LOG("unfocus %d", self->win);
     vals[0] = nil_.color.border;
     xcb_change_window_attributes(nil_.con, self->win, XCB_CW_BORDER_PIXEL, vals);
     NIL_CLEAR_FLAG(self->flags, CLIENT_FOCUSED);
