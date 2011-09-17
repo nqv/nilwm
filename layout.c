@@ -19,12 +19,6 @@
 #define CAN_TILE_(C)     (NIL_HAS_FLAG(C->flags, CLIENT_MAPPED) \
     && !NIL_HAS_FLAG(C->flags, CLIENT_FLOAT))
 
-struct layout_handler_t {
-    void (*arrange)(struct workspace_t *);
-    void (*focus)(struct workspace_t *, int dir);
-    void (*swap)(struct workspace_t *, int dir);
-};
-
 /** Tile windows
  * Not arrange floating window
  */
@@ -77,7 +71,7 @@ void arrange_tile(struct workspace_t *self) {
 /** Focus next window in tile mode
  */
 static
-void focus_tile(struct workspace_t *self, int dir) {
+void focus_tile(struct workspace_t *self, const int dir) {
     struct client_t *c;
 
     if (!self->focus) {
@@ -85,13 +79,21 @@ void focus_tile(struct workspace_t *self, int dir) {
         NEXT_CLIENT_(c, self->first, NIL_HAS_FLAG(c->flags, CLIENT_MAPPED));
     } else if (dir == NAV_NEXT) {
         NEXT_CLIENT_(c, self->focus->next, NIL_HAS_FLAG(c->flags, CLIENT_MAPPED));
-        if (!c) {
-            c = self->first;    /* loop */
+        if (!c) {       /* loop */
+            for (c = self->first; c && (c != self->focus); c = c->next) {
+                if (NIL_HAS_FLAG(c->flags, CLIENT_MAPPED)) {
+                    break;
+                }
+            }
         }
     } else if (dir == NAV_PREV) {
         PREV_CLIENT_(c, self->focus->prev, NIL_HAS_FLAG(c->flags, CLIENT_MAPPED));
-        if (!c) {
-            c = self->last;     /* loop */
+        if (!c) {       /* loop */
+            for (c = self->last; c && (c != self->focus); c = c->prev) {
+                if (NIL_HAS_FLAG(c->flags, CLIENT_MAPPED)) {
+                    break;
+                }
+            }
         }
     } else {
         NEXT_CLIENT_(c, self->first, NIL_HAS_FLAG(c->flags, CLIENT_MAPPED));
@@ -103,34 +105,46 @@ void focus_tile(struct workspace_t *self, int dir) {
     }
 }
 
+/** Only swap with tiled windows
+ */
 static
-void swap_tile(struct workspace_t *self, int dir) {
+void swap_tile(struct workspace_t *self, const int dir) {
     struct client_t *c;
 
     if (!self->focus) {
         return;
     }
     if (dir == NAV_NEXT) {
-        NEXT_CLIENT_(c, self->focus->next, NIL_HAS_FLAG(c->flags, CLIENT_MAPPED));
-        if (!c) {
-            c = self->first;    /* loop */
+        NEXT_CLIENT_(c, self->focus->next, CAN_TILE_(c));
+        if (!c) {   /* loop */
+            for (c = self->first; c && (c != self->focus); c = c->next) {
+                if (CAN_TILE_(c)) {
+                    break;
+                }
+            }
         }
     } else if (dir == NAV_PREV) {
-        PREV_CLIENT_(c, self->focus->prev, NIL_HAS_FLAG(c->flags, CLIENT_MAPPED));
-        if (!c) {
-            c = self->last;     /* loop */
+        PREV_CLIENT_(c, self->focus->prev, CAN_TILE_(c));
+        if (!c) {   /* loop */
+            for (c = self->last; c && (c != self->focus); c = c->prev) {
+                if (CAN_TILE_(c)) {
+                    break;
+                }
+            }
         }
     } else {
-        NEXT_CLIENT_(c, self->first, NIL_HAS_FLAG(c->flags, CLIENT_MAPPED));
+        NEXT_CLIENT_(c, self->first, CAN_TILE_(c));
     }
     if (c && c != self->focus) {
         swap_client(self->focus, c);
+        move_resize_client(c);
+        move_resize_client(self->focus);
     }
 }
 
 /** Handlers for each type of layouts
  */
-static const struct layout_handler_t layouts_[] = {
+static const struct layout_t layouts_[] = {
     [LAYOUT_TILE] = {
         .arrange    = &arrange_tile,
         .focus      = &focus_tile,
@@ -139,27 +153,23 @@ static const struct layout_handler_t layouts_[] = {
     [LAYOUT_FREE] = {
         .arrange    = 0,
         .focus      = &focus_tile,
-        .swap       = &swap_tile,
+        .swap       = 0,
     },
 };
 
+/** Get layout handler of current workspace
+ */
+const struct layout_t *get_layout(int idx) {
+    return &layouts_[nil_.ws[idx].layout];
+}
+
 void arrange() {
-    const struct layout_handler_t *h;
+    const struct layout_t *h;
 
     NIL_LOG("arrange %d", nil_.ws_idx);
     h = &layouts_[nil_.ws[nil_.ws_idx].layout];
     if (h->arrange) {
         (*h->arrange)(&nil_.ws[nil_.ws_idx]);
-    }
-}
-
-void change_focus(int dir) {
-    const struct layout_handler_t *h;
-
-    NIL_LOG("focus %d", nil_.ws_idx);
-    h = &layouts_[nil_.ws[nil_.ws_idx].layout];
-    if (h->focus) {
-        (*h->focus)(&nil_.ws[nil_.ws_idx], dir);
     }
 }
 

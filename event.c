@@ -110,9 +110,12 @@ void handle_expose(xcb_expose_event_t *e) {
     NIL_LOG("event: expose win=%d %d,%d %ux%u", e->window, e->x, e->y, e->width,
         e->height);
 
-    if (e->count == 0 && e->window == bar_.win) {   /* init bar */
+    if (e->window == bar_.win) {            /* init bar */
         NIL_LOG("bar draw seq=%u", e->sequence);
-        draw_bar_text(&bar_, 8, 8, "Nguyen Quoc Viet");
+        if (e->count == 0) {
+            config_bar();
+            xcb_flush(nil_.con);
+        }
         return;
     }
 }
@@ -190,6 +193,9 @@ void handle_map_notify(xcb_map_notify_event_t *e) {
     struct client_t *c;
 
     NIL_LOG("event: map notify %d", e->window);
+    if (e->window == bar_.win) {
+        return;
+    }
     c = find_client(e->window, 0);
     if (!c) {
         NIL_ERR("no client %d", e->window);

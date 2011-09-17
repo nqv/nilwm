@@ -64,11 +64,18 @@ struct client_t {
     struct client_t *prev, *next;
 };
 
+struct bar_area_t {
+    int16_t x;
+    uint16_t w;
+};
+
 struct bar_t {
     xcb_window_t win;
     xcb_gcontext_t gc;
     int16_t x, y;
     uint16_t w, h;
+    struct bar_area_t ws;           /* workspace selection */
+    struct bar_area_t sym;          /* layout symbol */
 };
 
 struct font_t {
@@ -79,11 +86,16 @@ struct font_t {
 struct color_t {
     uint32_t border;
     uint32_t focus;
+    uint32_t bar_bg;
+    uint32_t bar_fg;
+    uint32_t bar_hl;
 };
 
 struct arg_t {
-    int c;
-    void *v;
+    union {
+        int i;
+        void *v;
+    };
 };
 
 struct key_t {
@@ -100,6 +112,12 @@ struct workspace_t {
     int layout;
 };
 
+struct layout_t {
+    void (*arrange)(struct workspace_t *);
+    void (*focus)(struct workspace_t *, int dir);
+    void (*swap)(struct workspace_t *, int dir);
+};
+
 struct config_t {
     uint16_t border_width;
     unsigned int num_workspaces;
@@ -112,6 +130,9 @@ struct config_t {
 
     const char *border_color;
     const char *focus_color;
+    const char *bar_bg_color;
+    const char *bar_fg_color;
+    const char *bar_hl_color;
 };
 
 struct atom_t {
@@ -153,10 +174,11 @@ void swap_client(struct client_t *self, struct client_t *c);
 
 /* layout.c */
 void arrange();
-void change_focus(int dir);
+const struct layout_t *get_layout(int idx);
 
 /* bar.c */
-void draw_bar_text(struct bar_t *self, int x, int y, const char *str);
+void config_bar();
+void text_bar(int x, int y, const char *str);
 
 /* event.c */
 void recv_events();
@@ -164,6 +186,7 @@ void recv_events();
 /* nilwm.c */
 void spawn(const struct arg_t *arg);
 void focus(const struct arg_t *arg);
+void swap(const struct arg_t *arg);
 int check_key(unsigned int mod, xcb_keysym_t key);
 xcb_keysym_t get_keysym(xcb_keycode_t keycode, uint16_t state);
 xcb_keycode_t get_keycode(xcb_keysym_t keysym);

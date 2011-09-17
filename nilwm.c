@@ -12,7 +12,6 @@
 #include "nilwm.h"
 
 struct nilwm_t nil_;
-struct bar_t bar_;
 
 static
 void handle_signal(int sig) {
@@ -39,7 +38,23 @@ void spawn(const struct arg_t *arg) {
 }
 
 void focus(const struct arg_t *arg) {
-    change_focus(arg->c);
+    const struct layout_t *h;
+
+    NIL_LOG("focus %d", nil_.ws_idx);
+    h = get_layout(nil_.ws_idx);
+    if (h->focus) {
+        (*h->focus)(&nil_.ws[nil_.ws_idx], arg->i);
+    }
+}
+
+void swap(const struct arg_t *arg) {
+    const struct layout_t *h;
+
+    NIL_LOG("swap %d", nil_.ws_idx);
+    h = get_layout(nil_.ws_idx);
+    if (h->swap) {
+        (*h->swap)(&nil_.ws[nil_.ws_idx], arg->i);
+    }
 }
 
 int check_key(unsigned int mod, xcb_keysym_t key) {
@@ -243,7 +258,10 @@ int init_mouse() {
 static
 int init_color() {
     if ((get_color(cfg_.border_color, &nil_.color.border) != 0)
-        || (get_color(cfg_.focus_color, &nil_.color.focus) != 0)) {
+        || (get_color(cfg_.focus_color, &nil_.color.focus) != 0)
+        || (get_color(cfg_.bar_bg_color, &nil_.color.bar_bg) != 0)
+        || (get_color(cfg_.bar_fg_color, &nil_.color.bar_fg) != 0)
+        || (get_color(cfg_.bar_hl_color, &nil_.color.bar_hl) != 0)) {
         return -1;
     }
     return 0;
@@ -312,8 +330,8 @@ int init_bar() {
     }
     /* graphic context */
     bar_.gc = xcb_generate_id(nil_.con);
-    vals[0] = nil_.scr->black_pixel;
-    vals[1] = nil_.scr->white_pixel;
+    vals[0] = nil_.color.bar_fg;
+    vals[1] = nil_.color.bar_bg;
     vals[2] = nil_.font.id;
     cookie = xcb_create_gc_checked(nil_.con, bar_.gc, bar_.win, XCB_GC_FOREGROUND
         | XCB_GC_BACKGROUND | XCB_GC_FONT, vals);
