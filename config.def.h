@@ -35,6 +35,8 @@ static const struct key_t KEYS[] = {
     { MOD_KEY|MOD_SHIFT,            XK_Return,      swap,           { .i = 0 } },
     { MOD_KEY|MOD_SHIFT,            XK_j,           swap,           { .i = +1 } },
     { MOD_KEY|MOD_SHIFT,            XK_k,           swap,           { .i = -1 } },
+    { MOD_KEY|MOD_SHIFT,            XK_c,           killc,          { .i = 0  } },
+    { MOD_KEY|MOD_SHIFT,            XK_space,       togglef,        { .i = 0  } },
 };
 
 #endif /* NILWM_CONFIG_H_ */

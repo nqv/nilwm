@@ -4,8 +4,6 @@
  */
 
 #include <stdlib.h>
-#include <xcb/xcb_icccm.h>
-#include <xcb/xcb_atom.h>
 #include "nilwm.h"
 
 /** Initialize a client after having window
@@ -197,6 +195,11 @@ void blur_client(struct client_t *self) {
     vals[0] = nil_.color.border;
     xcb_change_window_attributes(nil_.con, self->win, XCB_CW_BORDER_PIXEL, vals);
     NIL_CLEAR_FLAG(self->flags, CLIENT_FOCUSED);
+}
+
+void raise_client(struct client_t *self) {
+    const uint32_t vals[] = { XCB_STACK_MODE_ABOVE };
+    xcb_configure_window(nil_.con, self->win, XCB_CONFIG_WINDOW_STACK_MODE, vals);
 }
 
 void hide_client(struct client_t *self) {

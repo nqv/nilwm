@@ -38,10 +38,12 @@ void arrange_tile(struct workspace_t *self) {
     NEXT_CLIENT_(c, m->next, CAN_TILE_(c));
     if (!c) {           /* 1 window */
         RESIZE_CLIENT_(m, nil_.x, nil_.y, nil_.w, nil_.h);
+        move_resize_client(m);
         return;
     }
     w = cfg_.mfact * nil_.w;
     RESIZE_CLIENT_(m, nil_.x, nil_.y, w, nil_.h);
+    move_resize_client(m);
     /* next position */
     x = (int)w;
     y = nil_.y;
@@ -60,9 +62,11 @@ void arrange_tile(struct workspace_t *self) {
         }
         if (n == 1) {       /* last one */
             RESIZE_CLIENT_(c, x, y, w, nil_.h + nil_.y - y);
+            move_resize_client(c);
             break;
         }
         RESIZE_CLIENT_(c, x, y, w, h);
+        move_resize_client(c);
         y = c->y + c->h + 2 * c->border_width;
         --n;
     } while (0 != (c = c->next));
@@ -99,9 +103,9 @@ void focus_tile(struct workspace_t *self, const int dir) {
         NEXT_CLIENT_(c, self->first, NIL_HAS_FLAG(c->flags, CLIENT_MAPPED));
     }
     if (c) {
-        xcb_warp_pointer(nil_.con, XCB_NONE, c->win, 0, 0, 0, 0, 0, 0);
         xcb_set_input_focus(nil_.con, XCB_INPUT_FOCUS_POINTER_ROOT, c->win,
             XCB_CURRENT_TIME);
+        raise_client(c);
     }
 }
 

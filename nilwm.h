@@ -10,6 +10,7 @@
 #include <xcb/xcb.h>
 #include <xcb/xcb_keysyms.h>
 #include <xcb/xcb_atom.h>
+#include <xcb/xcb_icccm.h>
 
 #define NIL_QUOTE(x)            #x
 #define NIL_TOSTR(x)            NIL_QUOTE(x)
@@ -170,6 +171,7 @@ struct client_t *find_client(xcb_window_t win, struct workspace_t **ws);
 struct client_t *remove_client(xcb_window_t win, struct workspace_t **ws);
 void focus_client(struct client_t *self);
 void blur_client(struct client_t *self);
+void raise_client(struct client_t *self);
 void swap_client(struct client_t *self, struct client_t *c);
 
 /* layout.c */
@@ -187,6 +189,9 @@ void recv_events();
 void spawn(const struct arg_t *arg);
 void focus(const struct arg_t *arg);
 void swap(const struct arg_t *arg);
+void killc(const struct arg_t *arg);
+void togglef(const struct arg_t *arg);
+
 int check_key(unsigned int mod, xcb_keysym_t key);
 xcb_keysym_t get_keysym(xcb_keycode_t keycode, uint16_t state);
 xcb_keycode_t get_keycode(xcb_keysym_t keysym);

@@ -23,6 +23,25 @@ void handle_signal(int sig) {
     }
 }
 
+static
+int is_proto_delete(const struct client_t *c) {
+    xcb_get_property_cookie_t cookie;
+    xcb_icccm_get_wm_protocols_reply_t proto;
+    unsigned int i;
+
+    cookie = xcb_icccm_get_wm_protocols_unchecked(nil_.con, c->win, nil_.atom.wm_delete);
+    if (xcb_icccm_get_wm_protocols_reply(nil_.con, cookie, &proto, 0)) {
+        for (i = 0; i < proto.atoms_len; i++) {
+            if (proto.atoms[i] == nil_.atom.wm_delete) {
+                xcb_icccm_get_wm_protocols_reply_wipe(&proto);
+                return 1;
+            }
+        }
+        xcb_icccm_get_wm_protocols_reply_wipe(&proto);
+    }
+    return 0;
+}
+
 void spawn(const struct arg_t *arg) {
     pid_t pid;
     pid = fork();
@@ -55,6 +74,50 @@ void swap(const struct arg_t *arg) {
     if (h->swap) {
         (*h->swap)(&nil_.ws[nil_.ws_idx], arg->i);
     }
+}
+
+void killc(const struct arg_t *NIL_UNUSED(arg)) {
+    struct client_t *c;
+
+    c = nil_.ws[nil_.ws_idx].focus;
+    NIL_LOG("kill client %p", c);
+    if (!c) {
+        return;
+    }
+    if (is_proto_delete(c)) {
+        xcb_client_message_event_t e;
+        memset(&e, 0, sizeof(e));
+        e.response_type     = XCB_CLIENT_MESSAGE;
+        e.window            = c->win;
+        e.type              = nil_.atom.wm_protocols;
+        e.format            = 32;
+        e.data.data32[0]    = nil_.atom.wm_delete;
+        e.data.data32[1]    = XCB_CURRENT_TIME;
+        NIL_LOG("send kill %d", c->win);
+        xcb_send_event(nil_.con, 0, c->win, XCB_EVENT_MASK_NO_EVENT,
+            (const char *)&e);
+    } else {
+        NIL_LOG("force kill %d", c->win);
+        xcb_kill_client(nil_.con, c->win);
+    }
+}
+
+void togglef(const struct arg_t *NIL_UNUSED(arg)) {
+    struct client_t *c;
+
+    c = nil_.ws[nil_.ws_idx].focus;
+    if (!c || NIL_HAS_FLAG(c->flags, CLIENT_FIXED)) {
+        return;
+    }
+    NIL_LOG("toogle floating %d", c->win);
+    if (NIL_HAS_FLAG(c->flags, CLIENT_FLOAT)) {
+        NIL_CLEAR_FLAG(c->flags, CLIENT_FLOAT);
+    } else {
+        NIL_SET_FLAG(c->flags, CLIENT_FLOAT);
+    }
+    arrange();
+    raise_client(c);
+    xcb_flush(nil_.con);
 }
 
 int check_key(unsigned int mod, xcb_keysym_t key) {

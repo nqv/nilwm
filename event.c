@@ -80,6 +80,11 @@ void handle_focus_in(xcb_focus_in_event_t *e) {
     struct workspace_t *ws;
 
     NIL_LOG("event: focus in win=%d", e->event);
+    if (e->mode == XCB_NOTIFY_MODE_GRAB || e->mode == XCB_NOTIFY_MODE_UNGRAB
+        || e->detail == XCB_NOTIFY_DETAIL_POINTER) {
+        /* ignore event for grap/ungrap or detail is pointer */
+        return;
+    }
     c = find_client(e->event, &ws);
     if (!c) {
         NIL_ERR("no client %d", e->event);
@@ -163,14 +168,12 @@ void handle_destroy_notify(xcb_destroy_notify_event_t *e) {
     if (!NIL_HAS_FLAG(c->flags, CLIENT_FLOAT)) {
         /* rearrange if is current workspace */
         if (ws == &nil_.ws[nil_.ws_idx]) {
-            struct client_t *d;
             arrange();
-            /* notify client size after rearrange */
-            for (d = ws->first; d; d = d->next) {
-                move_resize_client(d);      /* update window configuration */
-            }
             xcb_flush(nil_.con);
         }
+    }
+    if (ws->focus == c) {
+        ws->focus = 0;
     }
     free(c);
 }
@@ -263,12 +266,7 @@ void handle_map_request(xcb_map_request_event_t *e) {
     init_client(c);
     NIL_SET_FLAG(c->flags, CLIENT_MAPPED);
     if (!NIL_HAS_FLAG(c->flags, CLIENT_FLOAT)) {    /* only rearrange if it's not float */
-        struct client_t *d;
         arrange();
-        /* notify client size after rearrange */
-        for (d = nil_.ws[nil_.ws_idx].first; d; d = d->next) {
-            move_resize_client(d);      /* update window configuration */
-        }
     } else {                            /* fix window size if needed */
         check_client_size(c);
         move_resize_client(c);
