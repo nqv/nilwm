@@ -235,14 +235,11 @@ void update_keys_mask() {
             }
             if (key == key_num) {
                 nil_.mask_numlock = (uint16_t)(1 << i);
-            }
-            if (key == key_shift) {
+            } else if (key == key_shift) {
                 nil_.mask_shiftlock = (uint16_t)(1 << i);
-            }
-            if (key == key_caps) {
+            } else if (key == key_caps) {
                 nil_.mask_capslock = (uint16_t)(1 << i);
-            }
-            if (key == key_mode) {
+            } else if (key == key_mode) {
                 nil_.mask_modeswitch = (uint16_t)(1 << i);
             }
         }
@@ -292,8 +289,13 @@ int init_key() {
         if (key == 0) {
             continue;
         }
-        xcb_grab_key(nil_.con, 1, nil_.scr->root, k->mod, key,
-             XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC);
+        /* grap key in all combinations of NUMLOCK and CAPSLOCK*/
+        xcb_grab_key(nil_.con, 1, nil_.scr->root, k->mod,
+            key, XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC);
+        xcb_grab_key(nil_.con, 1, nil_.scr->root, k->mod | XCB_MOD_MASK_LOCK,
+            key, XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC);
+        xcb_grab_key(nil_.con, 1, nil_.scr->root, k->mod | nil_.mask_numlock,
+                    key, XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC);
     }
     return 0;
 }

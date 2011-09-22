@@ -11,8 +11,9 @@ void handle_key_press(xcb_key_press_event_t *e) {
     xcb_keysym_t sym;
     NIL_LOG("event: key press %d %d", e->state, e->detail);
 
-    sym = get_keysym(e->detail, e->state);
-    if (check_key(e->state, sym)) {
+    sym = xcb_key_symbols_get_keysym(nil_.key_syms, e->detail, 0);
+    /* find key with *LOCK state removed */
+    if (check_key(e->state & ~(nil_.mask_numlock | XCB_MOD_MASK_LOCK), sym)) {
         xcb_flush(nil_.con);
         return;
     }
