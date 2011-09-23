@@ -41,7 +41,7 @@ void arrange_tile(struct workspace_t *self) {
         move_resize_client(m);
         return;
     }
-    w = cfg_.mfact * nil_.w;
+    w = self->master_size / 100.0 * nil_.w;
     RESIZE_CLIENT_(m, nil_.x, nil_.y, w, nil_.h);
     move_resize_client(m);
     /* next position */

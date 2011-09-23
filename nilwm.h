@@ -111,6 +111,7 @@ struct workspace_t {
     struct client_t *last;
     struct client_t *focus;
     int layout;
+    int master_size;
 };
 
 struct layout_t {
@@ -126,7 +127,7 @@ struct config_t {
     struct key_t *keys;
     unsigned int keys_len;
 
-    float mfact;    /* master */
+    unsigned int master_size;       /* master factor */
     const char *font_name;
 
     const char *border_color;
@@ -189,8 +190,9 @@ void recv_events();
 void spawn(const struct arg_t *arg);
 void focus(const struct arg_t *arg);
 void swap(const struct arg_t *arg);
-void killc(const struct arg_t *arg);
-void togglef(const struct arg_t *arg);
+void kill_focused(const struct arg_t *arg);
+void toggle_floating(const struct arg_t *arg);
+void set_msize(const struct arg_t *arg);
 
 int check_key(unsigned int mod, xcb_keysym_t key);
 xcb_keysym_t get_keysym(xcb_keycode_t keycode, uint16_t state);

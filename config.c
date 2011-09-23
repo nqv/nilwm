@@ -16,7 +16,7 @@ const struct config_t cfg_ = {
     .keys = (struct key_t *)KEYS,
     .keys_len = NIL_LEN(KEYS),
 
-    .mfact = MASTER_FACTOR,
+    .master_size = MASTER_SIZE,
     .font_name = FONT_NAME,
 
     .border_color = BORDER_COLOR,

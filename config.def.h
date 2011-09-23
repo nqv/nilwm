@@ -13,7 +13,7 @@
 
 #define BORDER_WIDTH        1
 #define NUM_WORKSPACES      9
-#define MASTER_FACTOR       0.55
+#define MASTER_SIZE         55      /* % */
 
 #define BORDER_COLOR        "blue"
 #define FOCUS_COLOR         "red"
@@ -21,22 +21,24 @@
 #define BAR_FG_COLOR        "white"
 #define BAR_HL_COLOR        "yellow"
 
-#define FONT_NAME           "-*-fixed-medium-*-*-*-14-*-*-*-*-*-*-*"
+#define FONT_NAME           "-*-fixed-medium-r-normal-*-13-*-*-*-*-*-iso10646-*"
 
 static const char *CMD_TERM[] = { "xterm", 0 };
 
 /* Keysym X11/keysymdefs.h */
 static const struct key_t KEYS[] = {
-    /* modifier                     key             function        argument */
-    { MOD_KEY|MOD_CTRL,             XK_Return,      spawn,          { .v = CMD_TERM } },
-    { MOD_KEY,                      XK_Return,      focus,          { .i = 0 } },
-    { MOD_KEY,                      XK_j,           focus,          { .i = +1 } },
-    { MOD_KEY,                      XK_k,           focus,          { .i = -1 } },
-    { MOD_KEY|MOD_SHIFT,            XK_Return,      swap,           { .i = 0 } },
-    { MOD_KEY|MOD_SHIFT,            XK_j,           swap,           { .i = +1 } },
-    { MOD_KEY|MOD_SHIFT,            XK_k,           swap,           { .i = -1 } },
-    { MOD_KEY|MOD_SHIFT,            XK_c,           killc,          { .i = 0  } },
-    { MOD_KEY|MOD_SHIFT,            XK_space,       togglef,        { .i = 0  } },
+    /* modifier                     key             function            argument */
+    { MOD_KEY|MOD_CTRL,             XK_Return,      spawn,              {.v = CMD_TERM} },
+    { MOD_KEY,                      XK_Return,      focus,              {.i =  0} },
+    { MOD_KEY,                      XK_j,           focus,              {.i = +1} },
+    { MOD_KEY,                      XK_k,           focus,              {.i = -1} },
+    { MOD_KEY,                      XK_l,           set_msize,          {.i = +5} },
+    { MOD_KEY,                      XK_h,           set_msize,          {.i = -5} },
+    { MOD_KEY|MOD_SHIFT,            XK_Return,      swap,               {.i =  0} },
+    { MOD_KEY|MOD_SHIFT,            XK_j,           swap,               {.i = +1} },
+    { MOD_KEY|MOD_SHIFT,            XK_k,           swap,               {.i = -1} },
+    { MOD_KEY|MOD_SHIFT,            XK_c,           kill_focused,       {.i =  0} },
+    { MOD_KEY|MOD_SHIFT,            XK_space,       toggle_floating,    {.i =  0} },
 };
 
 #endif /* NILWM_CONFIG_H_ */

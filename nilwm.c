@@ -76,7 +76,7 @@ void swap(const struct arg_t *arg) {
     }
 }
 
-void killc(const struct arg_t *NIL_UNUSED(arg)) {
+void kill_focused(const struct arg_t *NIL_UNUSED(arg)) {
     struct client_t *c;
 
     c = nil_.ws[nil_.ws_idx].focus;
@@ -102,7 +102,7 @@ void killc(const struct arg_t *NIL_UNUSED(arg)) {
     }
 }
 
-void togglef(const struct arg_t *NIL_UNUSED(arg)) {
+void toggle_floating(const struct arg_t *NIL_UNUSED(arg)) {
     struct client_t *c;
 
     c = nil_.ws[nil_.ws_idx].focus;
@@ -118,6 +118,16 @@ void togglef(const struct arg_t *NIL_UNUSED(arg)) {
     arrange();
     raise_client(c);
     xcb_flush(nil_.con);
+}
+
+void set_msize(const struct arg_t *arg) {
+    int sz;
+
+    sz = nil_.ws[nil_.ws_idx].master_size + arg->i;
+    if (sz > 0 && sz < 100) {
+        nil_.ws[nil_.ws_idx].master_size = sz;
+        arrange();
+    }
 }
 
 int check_key(unsigned int mod, xcb_keysym_t key) {
@@ -424,7 +434,12 @@ int init_wm() {
         return -1;
     }
     memset(nil_.ws, 0, sizeof(struct workspace_t) * cfg_.num_workspaces);
-    nil_.ws_idx = 0;
+    for (nil_.ws_idx = cfg_.num_workspaces - 1; ; --nil_.ws_idx) {
+        nil_.ws[nil_.ws_idx].master_size = cfg_.master_size;
+        if (nil_.ws_idx == 0) {
+            break;
+        }
+    }
     /* workspace area (top) */
     nil_.x = 0;
     nil_.y = 0;
