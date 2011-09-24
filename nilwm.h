@@ -8,6 +8,7 @@
 
 #include <stdio.h>
 #include <xcb/xcb.h>
+#include <xcb/xproto.h>
 #include <xcb/xcb_keysyms.h>
 #include <xcb/xcb_atom.h>
 #include <xcb/xcb_icccm.h>
@@ -81,7 +82,8 @@ struct bar_t {
 
 struct font_t {
     xcb_font_t id;
-    uint16_t height;
+    uint16_t ascent;
+    uint16_t descent;
 };
 
 struct color_t {
@@ -95,6 +97,7 @@ struct color_t {
 struct arg_t {
     union {
         int i;
+        unsigned int u;
         void *v;
     };
 };
@@ -174,14 +177,20 @@ void focus_client(struct client_t *self);
 void blur_client(struct client_t *self);
 void raise_client(struct client_t *self);
 void swap_client(struct client_t *self, struct client_t *c);
+void hide_client(struct client_t *self);
+void show_client(struct client_t *self);
 
 /* layout.c */
 void arrange();
 const struct layout_t *get_layout(int idx);
+void hide_ws(struct workspace_t *self);
+void show_ws(struct workspace_t *self);
 
 /* bar.c */
 void config_bar();
 void text_bar(int x, int y, const char *str);
+int click_bar(int x);
+void update_bar_ws(unsigned int idx);
 
 /* event.c */
 void recv_events();
@@ -193,7 +202,9 @@ void swap(const struct arg_t *arg);
 void kill_focused(const struct arg_t *arg);
 void toggle_floating(const struct arg_t *arg);
 void set_msize(const struct arg_t *arg);
+void change_ws(const struct arg_t *arg);
 
+int cal_text_width(const char *text, int len);
 int check_key(unsigned int mod, xcb_keysym_t key);
 xcb_keysym_t get_keysym(xcb_keycode_t keycode, uint16_t state);
 xcb_keycode_t get_keycode(xcb_keysym_t keysym);

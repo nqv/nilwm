@@ -56,6 +56,8 @@ void spawn(const struct arg_t *arg) {
     }
 }
 
+/** Focus next/prev or master client
+ */
 void focus(const struct arg_t *arg) {
     const struct layout_t *h;
 
@@ -66,6 +68,8 @@ void focus(const struct arg_t *arg) {
     }
 }
 
+/** Swap focused client with next/prev/master one
+ */
 void swap(const struct arg_t *arg) {
     const struct layout_t *h;
 
@@ -128,6 +132,19 @@ void set_msize(const struct arg_t *arg) {
         nil_.ws[nil_.ws_idx].master_size = sz;
         arrange();
     }
+}
+
+void change_ws(const struct arg_t *arg) {
+    unsigned int prev_idx;
+    if (arg->u == nil_.ws_idx || arg->u >= cfg_.num_workspaces) {
+        return;
+    }
+    hide_ws(&nil_.ws[nil_.ws_idx]);
+    prev_idx = nil_.ws_idx;
+    nil_.ws_idx = arg->u;
+    show_ws(&nil_.ws[nil_.ws_idx]);
+    update_bar_ws(prev_idx);
+    update_bar_ws(nil_.ws_idx);
 }
 
 int check_key(unsigned int mod, xcb_keysym_t key) {
@@ -196,6 +213,23 @@ xcb_keycode_t get_keycode(xcb_keysym_t keysym) {
     k = *pk;
     free(pk);
     return k;
+}
+
+/** Predict text width
+ */
+int cal_text_width(const char *text, int len) {
+    xcb_query_text_extents_cookie_t cookie;
+    xcb_query_text_extents_reply_t *reply;
+
+    cookie = xcb_query_text_extents(nil_.con, nil_.font.id, len, (xcb_char2b_t*)text);
+    reply = xcb_query_text_extents_reply(nil_.con, cookie, 0);
+    if (!reply) {
+        NIL_ERR("get text extents %s", text);
+        return 7;   /* minimum */
+    }
+    len = reply->overall_width;
+    free(reply);
+    return len;
 }
 
 static
@@ -365,7 +399,9 @@ int init_font() {
         NIL_ERR("load font: %s", cfg_.font_name);
         return -1;
     }
-    nil_.font.height = info->font_ascent + info->font_descent;
+    NIL_LOG("font ascent=%d, descent=%d", info->font_ascent, info->font_descent);
+    nil_.font.ascent = info->font_ascent;
+    nil_.font.descent = info->font_descent;
     free(info);
     return 0;
 }
@@ -378,7 +414,7 @@ int init_bar() {
 
     /* create status bar window at the bottom */
     bar_.w = nil_.scr->width_in_pixels;
-    bar_.h = nil_.font.height + 2;
+    bar_.h = nil_.font.ascent + nil_.font.descent + 2;
     bar_.x = 0;
     bar_.y = nil_.scr->height_in_pixels - bar_.h;
     bar_.win = xcb_generate_id(nil_.con);

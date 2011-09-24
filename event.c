@@ -31,6 +31,12 @@ void handle_button_press(xcb_button_press_event_t *e) {
     NIL_LOG("event: mouse %d pressed: event %d, child %d (%d,%d)",
         e->detail, e->event, e->child, e->event_x, e->event_y);
 
+    if (e->event == bar_.win) {
+        if (click_bar(e->event_x)) {
+            xcb_flush(nil_.con);
+        }
+        return;
+    }
     /* if unhandled, forward the click to the application */
     xcb_allow_events(nil_.con, XCB_ALLOW_REPLAY_POINTER, e->time);
 }
@@ -120,6 +126,7 @@ void handle_expose(xcb_expose_event_t *e) {
         NIL_LOG("bar draw seq=%u", e->sequence);
         if (e->count == 0) {
             config_bar();
+            update_bar_ws(nil_.ws_idx);
             xcb_flush(nil_.con);
         }
         return;

@@ -203,6 +203,11 @@ void raise_client(struct client_t *self) {
 }
 
 void hide_client(struct client_t *self) {
-
+    xcb_unmap_window(nil_.con, self->win);
 }
+
+void show_client(struct client_t *self) {
+    xcb_map_window(nil_.con, self->win);
+}
+
 /* vim: set ts=4 sw=4 expandtab: */

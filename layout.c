@@ -16,6 +16,12 @@
     for (C = FROM; C; C = C->prev) {        \
         if (COND) { break; }                \
     }
+#define EACH_CLIENT_(WS, C, CMD)            \
+    C = WS->first;                          \
+    while (C) {                             \
+        CMD(C);                             \
+        C = C->next;                        \
+    }
 #define CAN_TILE_(C)     (NIL_HAS_FLAG(C->flags, CLIENT_MAPPED) \
     && !NIL_HAS_FLAG(C->flags, CLIENT_FLOAT))
 
@@ -175,6 +181,20 @@ void arrange() {
     if (h->arrange) {
         (*h->arrange)(&nil_.ws[nil_.ws_idx]);
     }
+}
+
+/** Hide all clients in the workspace
+ */
+void hide_ws(struct workspace_t *self)
+{
+    struct client_t *c;
+    EACH_CLIENT_(self, c, hide_client);
+}
+
+void show_ws(struct workspace_t *self)
+{
+    struct client_t *c;
+    EACH_CLIENT_(self, c, show_client);
 }
 
 /* vim: set ts=4 sw=4 expandtab: */
