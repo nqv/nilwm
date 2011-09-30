@@ -127,6 +127,8 @@ void handle_expose(xcb_expose_event_t *e) {
         if (e->count == 0) {
             config_bar();
             update_bar_ws(nil_.ws_idx);
+            update_bar_sym();
+            update_bar_status();
             xcb_flush(nil_.con);
         }
         return;
@@ -285,6 +287,17 @@ void handle_map_request(xcb_map_request_event_t *e) {
     xcb_flush(nil_.con);
 }
 
+static
+void handle_property_notify(xcb_property_notify_event_t *e) {
+    NIL_LOG("event: property notify win=%d atom=%d", e->window, e->atom);
+
+    if (e->atom == XCB_ATOM_WM_NAME && e->window == nil_.scr->root) {
+        update_bar_status();
+        xcb_flush(nil_.con);
+        return;
+    }
+}
+
 typedef void (*event_handler_t)(xcb_generic_event_t *);
 static const event_handler_t HANDLERS_[] = {
     [XCB_KEY_PRESS]         = (event_handler_t)&handle_key_press,
@@ -302,6 +315,7 @@ static const event_handler_t HANDLERS_[] = {
     [XCB_MAP_NOTIFY]        = (event_handler_t)&handle_map_notify,
     [XCB_MAP_REQUEST]       = (event_handler_t)&handle_map_request,
     [XCB_CONFIGURE_NOTIFY]  = (event_handler_t)&handle_configure_notify,
+    [XCB_PROPERTY_NOTIFY]   = (event_handler_t)&handle_property_notify,
 };
 
 /** Events loop

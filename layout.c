@@ -5,6 +5,9 @@
 
 #include "nilwm.h"
 
+#define SYMBOL_TILE_            "T"
+#define SYMBOL_FREE_            "F"
+
 #define RESIZE_CLIENT_(C, X, Y, W, H)       \
     C->x = X; C->y = Y;                     \
     C->w = (W) - 2 * C->border_width; C->h = (H) - 2 * C->border_width
@@ -156,11 +159,13 @@ void swap_tile(struct workspace_t *self, const int dir) {
  */
 static const struct layout_t layouts_[] = {
     [LAYOUT_TILE] = {
+        .symbol     = SYMBOL_TILE_,
         .arrange    = &arrange_tile,
         .focus      = &focus_tile,
         .swap       = &swap_tile,
     },
     [LAYOUT_FREE] = {
+        .symbol     = SYMBOL_FREE_,
         .arrange    = 0,
         .focus      = &focus_tile,
         .swap       = 0,

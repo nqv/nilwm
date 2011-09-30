@@ -215,6 +215,34 @@ xcb_keycode_t get_keycode(xcb_keysym_t keysym) {
     return k;
 }
 
+/** Get window text property
+ */
+int get_text_prop(xcb_window_t win, xcb_atom_t atom, char *s, unsigned int len) {
+    xcb_get_property_cookie_t cookie;
+    xcb_icccm_get_text_property_reply_t reply;
+
+    if (len == 0) {
+        return 0;
+    }
+    cookie = xcb_icccm_get_text_property(nil_.con, win, atom);
+    if (!xcb_icccm_get_text_property_reply(nil_.con, cookie, &reply, 0)) {
+        NIL_LOG("no reply get_text_property %d", atom);
+        return -1;
+    }
+    if (reply.encoding != XCB_ATOM_STRING) {
+        xcb_icccm_get_text_property_reply_wipe(&reply);
+        return -1;
+    }
+    --len;  /* null terminated */
+    if (reply.name_len < len) {
+        len = reply.name_len;
+    }
+    strncpy(s, reply.name, len);
+    s[len] = '\0';
+    xcb_icccm_get_text_property_reply_wipe(&reply);
+    return (int)len;
+}
+
 /** Predict text width
  */
 int cal_text_width(const char *text, int len) {
@@ -339,7 +367,7 @@ int init_key() {
         xcb_grab_key(nil_.con, 1, nil_.scr->root, k->mod | XCB_MOD_MASK_LOCK,
             key, XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC);
         xcb_grab_key(nil_.con, 1, nil_.scr->root, k->mod | nil_.mask_numlock,
-                    key, XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC);
+            key, XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC);
     }
     return 0;
 }

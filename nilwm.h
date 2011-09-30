@@ -52,6 +52,24 @@ enum {                          /* for focus/swap */
     NAV_NEXT    = 1,
 };
 
+enum {
+    BAR_WS      = 0,
+    BAR_SYM,
+    BAR_TASK,
+    BAR_STATUS,
+    BAR_ICON,
+    NUM_BAR,
+};
+
+enum {                              /* box flags */
+    BOX_LEFT        = 0 << 0,       /* 2 bits for box floating */
+    BOX_RIGHT       = 1 << 0,
+    BOX_FIXED       = 2 << 0,
+    BOX_TEXT_LEFT   = 0 << 2,       /* 2 bits for text alignment */
+    BOX_TEXT_RIGHT  = 1 << 2,
+    BOX_TEXT_CENTER = 2 << 2,
+};
+
 struct client_t {
     xcb_window_t win;
     int16_t x, y;
@@ -66,9 +84,11 @@ struct client_t {
     struct client_t *prev, *next;
 };
 
-struct bar_area_t {
+struct bar_box_t {
     int16_t x;
     uint16_t w;
+    void (*click)(struct bar_box_t *self, int x);
+    unsigned int flags;
 };
 
 struct bar_t {
@@ -76,8 +96,7 @@ struct bar_t {
     xcb_gcontext_t gc;
     int16_t x, y;
     uint16_t w, h;
-    struct bar_area_t ws;           /* workspace selection */
-    struct bar_area_t sym;          /* layout symbol */
+    struct bar_box_t box[NUM_BAR];
 };
 
 struct font_t {
@@ -118,6 +137,7 @@ struct workspace_t {
 };
 
 struct layout_t {
+    const char *symbol;
     void (*arrange)(struct workspace_t *);
     void (*focus)(struct workspace_t *, int dir);
     void (*swap)(struct workspace_t *, int dir);
@@ -191,6 +211,8 @@ void config_bar();
 void text_bar(int x, int y, const char *str);
 int click_bar(int x);
 void update_bar_ws(unsigned int idx);
+void update_bar_sym();
+void update_bar_status();
 
 /* event.c */
 void recv_events();
@@ -204,6 +226,7 @@ void toggle_floating(const struct arg_t *arg);
 void set_msize(const struct arg_t *arg);
 void change_ws(const struct arg_t *arg);
 
+int get_text_prop(xcb_window_t win, xcb_atom_t atom, char *s, unsigned int len);
 int cal_text_width(const char *text, int len);
 int check_key(unsigned int mod, xcb_keysym_t key);
 xcb_keysym_t get_keysym(xcb_keycode_t keycode, uint16_t state);
