@@ -9,7 +9,13 @@
 #include <signal.h>
 #include <sys/wait.h>
 #include <X11/keysym.h>
+#include <X11/cursorfont.h>
 #include "nilwm.h"
+
+#define CURSOR_FONT_                    "cursor"
+#define CURSOR_PTR_LEFT_                XC_left_ptr
+#define CURSOR_PTR_MOVE_                XC_fleur
+#define CURSOR_PTR_RESIZE_              XC_bottom_right_corner
 
 struct nilwm_t nil_;
 
@@ -113,7 +119,7 @@ void toggle_floating(const struct arg_t *NIL_UNUSED(arg)) {
     if (!c || NIL_HAS_FLAG(c->flags, CLIENT_FIXED)) {
         return;
     }
-    NIL_LOG("toogle floating %d", c->win);
+    NIL_LOG("toggle floating %d", c->win);
     if (NIL_HAS_FLAG(c->flags, CLIENT_FLOAT)) {
         NIL_CLEAR_FLAG(c->flags, CLIENT_FLOAT);
     } else {
@@ -393,6 +399,45 @@ int init_mouse() {
 }
 
 static
+int init_cursor() {
+    xcb_font_t font;
+    xcb_void_cookie_t cookie;
+    xcb_generic_error_t *error;
+
+    font = xcb_generate_id(nil_.con);
+    xcb_open_font(nil_.con, font, strlen(CURSOR_FONT_), CURSOR_FONT_);
+
+    nil_.cursor[CURSOR_NORMAL] = xcb_generate_id(nil_.con);
+    cookie = xcb_create_glyph_cursor_checked(nil_.con, nil_.cursor[CURSOR_NORMAL],
+        font, font, CURSOR_PTR_LEFT_, CURSOR_PTR_LEFT_ + 1,
+        0, 0, 0, 0xFFFF, 0xFFFF, 0xFFFF);
+    error = xcb_request_check(nil_.con, cookie);
+    if (error) {
+        NIL_ERR("create cursor %d %d", CURSOR_PTR_LEFT_, error->error_code);
+        xcb_close_font(nil_.con, font);
+        return -1;
+    }
+    nil_.cursor[CURSOR_MOVE] = xcb_generate_id(nil_.con);
+    cookie = xcb_create_glyph_cursor_checked(nil_.con, nil_.cursor[CURSOR_NORMAL],
+        font, font, CURSOR_PTR_MOVE_, CURSOR_PTR_MOVE_ + 1, 0, 0, 0, 0, 0, 0);
+    error = xcb_request_check(nil_.con, cookie);
+    if (error) {
+        NIL_ERR("create cursor %d %d", CURSOR_PTR_MOVE_, error->error_code);
+        nil_.cursor[CURSOR_MOVE] = nil_.cursor[CURSOR_NORMAL];
+    }
+    nil_.cursor[CURSOR_RESIZE] = xcb_generate_id(nil_.con);
+    cookie = xcb_create_glyph_cursor_checked(nil_.con, nil_.cursor[CURSOR_NORMAL],
+        font, font, CURSOR_PTR_RESIZE_, CURSOR_PTR_RESIZE_ + 1, 0, 0, 0, 0, 0, 0);
+    error = xcb_request_check(nil_.con, cookie);
+    if (error) {
+        NIL_ERR("create cursor %d %d", CURSOR_PTR_RESIZE_, error->error_code);
+        nil_.cursor[CURSOR_RESIZE] = nil_.cursor[CURSOR_NORMAL];
+    }
+    xcb_close_font(nil_.con, font);
+    return 0;
+}
+
+static
 int init_color() {
     if ((get_color(cfg_.border_color, &nil_.color.border) != 0)
         || (get_color(cfg_.focus_color, &nil_.color.focus) != 0)
@@ -449,11 +494,12 @@ int init_bar() {
     vals[0] = XCB_BACK_PIXMAP_PARENT_RELATIVE;
     vals[1] = 1;    /* override_redirect */
     vals[2] = XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_EXPOSURE;
-    /* TODO: XCB_CW_CURSOR */
+    vals[3] = nil_.cursor[CURSOR_NORMAL];
+
     cookie = xcb_create_window_checked(nil_.con, nil_.scr->root_depth, bar_.win,
         nil_.scr->root, bar_.x, bar_.y, bar_.w, bar_.h, 0, XCB_COPY_FROM_PARENT,
         nil_.scr->root_visual, XCB_CW_BACK_PIXMAP | XCB_CW_OVERRIDE_REDIRECT
-        | XCB_CW_EVENT_MASK, vals);
+        | XCB_CW_EVENT_MASK | XCB_CW_CURSOR, vals);
     err = xcb_request_check(nil_.con, cookie);
     if (err) {
         NIL_ERR("create window %d", err->error_code);
@@ -528,6 +574,20 @@ void cleanup() {
     if (nil_.font.id) {
         xcb_close_font(nil_.con, nil_.font.id);
     }
+    if (nil_.cursor[CURSOR_NORMAL]) {
+        xcb_free_cursor(nil_.con, nil_.cursor[CURSOR_NORMAL]);
+    }
+    if (nil_.cursor[CURSOR_MOVE]
+        && (nil_.cursor[CURSOR_MOVE] != nil_.cursor[CURSOR_NORMAL])) {
+        xcb_free_cursor(nil_.con, nil_.cursor[CURSOR_MOVE]);
+    }
+    if (nil_.cursor[CURSOR_RESIZE]
+        && (nil_.cursor[CURSOR_RESIZE] != nil_.cursor[CURSOR_NORMAL])) {
+        xcb_free_cursor(nil_.con, nil_.cursor[CURSOR_RESIZE]);
+    }
+    if (bar_.win) {
+        xcb_destroy_window(nil_.con, bar_.win);
+    }
     xcb_ungrab_keyboard(nil_.con, XCB_TIME_CURRENT_TIME);
     xcb_destroy_subwindows(nil_.con, nil_.scr->root);
     xcb_flush(nil_.con);
@@ -553,8 +613,8 @@ int main(int argc, char **argv) {
         exit(1);
     }
     /* 2nd stage */
-    if ((init_color() != 0) != (init_font() != 0) || (init_bar() != 0)
-        || (init_wm() != 0))  {
+    if ((init_cursor() != 0) || (init_color() != 0) != (init_font() != 0)
+        || (init_bar() != 0) || (init_wm() != 0))  {
         cleanup();
         exit(1);
     }

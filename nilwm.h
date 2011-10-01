@@ -70,6 +70,13 @@ enum {                              /* box flags */
     BOX_TEXT_CENTER = 2 << 2,
 };
 
+enum {
+    CURSOR_NORMAL,
+    CURSOR_MOVE,
+    CURSOR_RESIZE,
+    NUM_CURSOR,
+};
+
 struct client_t {
     xcb_window_t win;
     int16_t x, y;
@@ -172,6 +179,7 @@ struct nilwm_t {
     xcb_connection_t *con;
     xcb_screen_t *scr;
     xcb_key_symbols_t *key_syms;
+    xcb_cursor_t cursor[NUM_CURSOR];
     uint16_t mask_numlock;
     uint16_t mask_capslock;
     uint16_t mask_shiftlock;
