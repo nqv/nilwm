@@ -178,7 +178,7 @@ void handle_destroy_notify(xcb_destroy_notify_event_t *e) {
     if (!NIL_HAS_FLAG(c->flags, CLIENT_FLOAT)) {
         /* rearrange if is current workspace */
         if (ws == &nil_.ws[nil_.ws_idx]) {
-            arrange();
+            arrange_ws(ws);
             xcb_flush(nil_.con);
         }
     }
@@ -254,6 +254,7 @@ static
 void handle_map_request(xcb_map_request_event_t *e) {
     xcb_get_window_attributes_reply_t *reply;
     struct client_t *c;
+    struct workspace_t *ws;
 
     NIL_LOG("event: map request win=%d", e->window);
     reply = xcb_get_window_attributes_reply(nil_.con,
@@ -268,22 +269,25 @@ void handle_map_request(xcb_map_request_event_t *e) {
         return;
     }
     free(reply);
-    c = find_client(e->window, 0);
+    c = find_client(e->window, &ws);
     if (!c) {
         NIL_ERR("no client %d", e->window);
         return;
     }
     init_client(c);
-    NIL_SET_FLAG(c->flags, CLIENT_MAPPED);
-    if (!NIL_HAS_FLAG(c->flags, CLIENT_FLOAT)) {    /* only rearrange if it's not float */
-        arrange();
-    } else {                            /* fix window size if needed */
-        check_client_size(c);
+    NIL_SET_FLAG(c->flags, CLIENT_DISPLAY);
+    if (NIL_HAS_FLAG(c->flags, CLIENT_FLOAT)) {
+        check_client_size(c);           /* fix window size if needed */
         move_resize_client(c);
+    } else {                            /* only rearrange if it's not float */
+        arrange_ws(ws);
     }
     config_client(c);
-    xcb_map_window(nil_.con, c->win);
-    xcb_set_input_focus(nil_.con, XCB_INPUT_FOCUS_POINTER_ROOT, c->win, XCB_CURRENT_TIME);
+    if (ws == &nil_.ws[nil_.ws_idx]) {
+        xcb_map_window(nil_.con, c->win);
+        xcb_set_input_focus(nil_.con, XCB_INPUT_FOCUS_POINTER_ROOT, c->win,
+            XCB_CURRENT_TIME);
+    }
     xcb_flush(nil_.con);
 }
 

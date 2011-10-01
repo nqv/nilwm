@@ -25,8 +25,9 @@
         CMD(C);                             \
         C = C->next;                        \
     }
-#define CAN_TILE_(C)     (NIL_HAS_FLAG(C->flags, CLIENT_MAPPED) \
+#define CAN_TILE_(C)     (NIL_HAS_FLAG(C->flags, CLIENT_DISPLAY)   \
     && !NIL_HAS_FLAG(C->flags, CLIENT_FLOAT))
+#define CAN_FOCUS_(C)    (NIL_HAS_FLAG(C->flags, CLIENT_DISPLAY))
 
 /** Tile windows
  * Not arrange floating window
@@ -65,6 +66,7 @@ void arrange_tile(struct workspace_t *self) {
         }
     }
     h = nil_.h / n;
+    NIL_LOG("tile n=%d h=%u", n, h);
     do {
         if (!CAN_TILE_(c)) {
             continue;
@@ -89,27 +91,27 @@ void focus_tile(struct workspace_t *self, const int dir) {
 
     if (!self->focus) {
         /* focus first window if no window focused */
-        NEXT_CLIENT_(c, self->first, NIL_HAS_FLAG(c->flags, CLIENT_MAPPED));
+        NEXT_CLIENT_(c, self->first, CAN_FOCUS_(c));
     } else if (dir == NAV_NEXT) {
-        NEXT_CLIENT_(c, self->focus->next, NIL_HAS_FLAG(c->flags, CLIENT_MAPPED));
+        NEXT_CLIENT_(c, self->focus->next, CAN_FOCUS_(c));
         if (!c) {       /* loop */
             for (c = self->first; c && (c != self->focus); c = c->next) {
-                if (NIL_HAS_FLAG(c->flags, CLIENT_MAPPED)) {
+                if (CAN_FOCUS_(c)) {
                     break;
                 }
             }
         }
     } else if (dir == NAV_PREV) {
-        PREV_CLIENT_(c, self->focus->prev, NIL_HAS_FLAG(c->flags, CLIENT_MAPPED));
+        PREV_CLIENT_(c, self->focus->prev, CAN_FOCUS_(c));
         if (!c) {       /* loop */
             for (c = self->last; c && (c != self->focus); c = c->prev) {
-                if (NIL_HAS_FLAG(c->flags, CLIENT_MAPPED)) {
+                if (CAN_FOCUS_(c)) {
                     break;
                 }
             }
         }
     } else {
-        NEXT_CLIENT_(c, self->first, NIL_HAS_FLAG(c->flags, CLIENT_MAPPED));
+        NEXT_CLIENT_(c, self->first, CAN_FOCUS_(c));
     }
     if (c) {
         xcb_set_input_focus(nil_.con, XCB_INPUT_FOCUS_POINTER_ROOT, c->win,
@@ -178,13 +180,13 @@ const struct layout_t *get_layout(int idx) {
     return &layouts_[nil_.ws[idx].layout];
 }
 
-void arrange() {
+void arrange_ws(struct workspace_t *self) {
     const struct layout_t *h;
 
-    NIL_LOG("arrange %d", nil_.ws_idx);
-    h = &layouts_[nil_.ws[nil_.ws_idx].layout];
+    NIL_LOG("arrange %d", self - nil_.ws);
+    h = &layouts_[self->layout];
     if (h->arrange) {
-        (*h->arrange)(&nil_.ws[nil_.ws_idx]);
+        (*h->arrange)(self);
     }
 }
 

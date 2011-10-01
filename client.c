@@ -192,7 +192,7 @@ void focus_client(struct client_t *self) {
 
     vals[0] = nil_.color.focus;
     xcb_change_window_attributes(nil_.con, self->win, XCB_CW_BORDER_PIXEL, vals);
-    NIL_SET_FLAG(self->flags, CLIENT_FOCUSED);
+    NIL_SET_FLAG(self->flags, CLIENT_FOCUS);
 }
 
 /** Change border color
@@ -202,7 +202,7 @@ void blur_client(struct client_t *self) {
 
     vals[0] = nil_.color.border;
     xcb_change_window_attributes(nil_.con, self->win, XCB_CW_BORDER_PIXEL, vals);
-    NIL_CLEAR_FLAG(self->flags, CLIENT_FOCUSED);
+    NIL_CLEAR_FLAG(self->flags, CLIENT_FOCUS);
 }
 
 void raise_client(struct client_t *self) {

@@ -170,9 +170,9 @@ void update_bar_ws(unsigned int idx) {
     /* colors */
     vals[0] = nil_.color.bar_fg;
     if (idx == nil_.ws_idx) {               /* focused workspace */
-        vals[1] = nil_.color.focus;
+        vals[1] = nil_.color.bar_sel;
     } else if (nil_.ws[idx].first) {        /* has a client */
-        vals[1] = nil_.color.bar_hl;
+        vals[1] = nil_.color.bar_occ;
     } else {
         vals[1] = nil_.color.bar_bg;
     }

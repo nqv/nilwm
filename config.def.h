@@ -17,9 +17,11 @@
 
 #define BORDER_COLOR        "blue"
 #define FOCUS_COLOR         "red"
-#define BAR_BG_COLOR        "blue"
-#define BAR_FG_COLOR        "white"
-#define BAR_HL_COLOR        "yellow"
+#define BAR_BG_COLOR        "#111111"
+#define BAR_FG_COLOR        "#AAAAAA"
+#define BAR_SEL_COLOR       "#003366"       /* selecting */
+#define BAR_OCC_COLOR       "#333333"       /* occupied */
+#define BAR_URG_COLOR       "#663300"       /* urgent */
 
 #define FONT_NAME           "-*-fixed-medium-r-normal-*-13-*-*-*-*-*-iso10646-*"
 

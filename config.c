@@ -23,6 +23,8 @@ const struct config_t cfg_ = {
     .focus_color = FOCUS_COLOR,
     .bar_bg_color = BAR_BG_COLOR,
     .bar_fg_color = BAR_FG_COLOR,
-    .bar_hl_color = BAR_HL_COLOR,
+    .bar_sel_color = BAR_SEL_COLOR,
+    .bar_occ_color = BAR_OCC_COLOR,
+    .bar_urg_color = BAR_URG_COLOR,
 };
 /* vim: set ts=4 sw=4 expandtab: */

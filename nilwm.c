@@ -125,20 +125,21 @@ void toggle_floating(const struct arg_t *NIL_UNUSED(arg)) {
     } else {
         NIL_SET_FLAG(c->flags, CLIENT_FLOAT);
     }
-    arrange();
+    arrange_ws(&nil_.ws[nil_.ws_idx]);
     raise_client(c);
-    xcb_flush(nil_.con);
 }
 
 /** Set master's size ratio
  */
 void set_msize(const struct arg_t *arg) {
     int sz;
+    struct workspace_t *ws;
 
-    sz = nil_.ws[nil_.ws_idx].master_size + arg->i;
+    ws = &nil_.ws[nil_.ws_idx];
+    sz = ws->master_size + arg->i;
     if (sz > 0 && sz < 100) {
-        nil_.ws[nil_.ws_idx].master_size = sz;
-        arrange();
+        ws->master_size = sz;
+        arrange_ws(ws);
     }
 }
 
@@ -176,7 +177,7 @@ void push(const struct arg_t *arg) {
     hide_client(src->focus);
     src->focus = 0;
     /* rearrange and update new workspace indicator */
-    arrange();
+    arrange_ws(src);
     update_bar_ws(arg->u);
 }
 
@@ -300,18 +301,38 @@ int cal_text_width(const char *text, int len) {
 static
 int get_color(const char *str, uint32_t *color)
 {
-    xcb_alloc_named_color_cookie_t cookie;
-    xcb_alloc_named_color_reply_t *reply;
+    if (str[0] == '#') {        /* in hex format */
+        uint16_t r, g, b;
+        xcb_alloc_color_cookie_t cookie;
+        xcb_alloc_color_reply_t *reply;
 
-    cookie = xcb_alloc_named_color(nil_.con, nil_.scr->default_colormap,
-        strlen(str), str);
-    reply = xcb_alloc_named_color_reply(nil_.con, cookie, 0);
-    if (!reply) {
-        NIL_ERR("no color %s", str);
-        return -1;
+        if (sscanf(str + 1, "%2hx%2hx%2hx", &r, &g, &b) != 3) {
+            NIL_ERR("color format %s", str);
+            return -1;
+        }
+        cookie = xcb_alloc_color(nil_.con, nil_.scr->default_colormap,
+            r << 8, g << 8, b << 8);
+        reply = xcb_alloc_color_reply(nil_.con, cookie, 0);
+        if (!reply) {
+            NIL_ERR("no color %s", str);
+            return -1;
+        }
+        *color = reply->pixel;
+        free(reply);
+    } else {
+        xcb_alloc_named_color_cookie_t cookie;
+        xcb_alloc_named_color_reply_t *reply;
+
+        cookie = xcb_alloc_named_color(nil_.con, nil_.scr->default_colormap,
+            strlen(str), str);
+        reply = xcb_alloc_named_color_reply(nil_.con, cookie, 0);
+        if (!reply) {
+            NIL_ERR("no color %s", str);
+            return -1;
+        }
+        *color = reply->pixel;
+        free(reply);
     }
-    *color = reply->pixel;
-    free(reply);
     return 0;
 }
 
@@ -474,7 +495,9 @@ int init_color() {
         || (get_color(cfg_.focus_color, &nil_.color.focus) != 0)
         || (get_color(cfg_.bar_bg_color, &nil_.color.bar_bg) != 0)
         || (get_color(cfg_.bar_fg_color, &nil_.color.bar_fg) != 0)
-        || (get_color(cfg_.bar_hl_color, &nil_.color.bar_hl) != 0)) {
+        || (get_color(cfg_.bar_sel_color, &nil_.color.bar_sel) != 0)
+        || (get_color(cfg_.bar_occ_color, &nil_.color.bar_occ) != 0)
+        || (get_color(cfg_.bar_urg_color, &nil_.color.bar_urg) != 0)) {
         return -1;
     }
     return 0;

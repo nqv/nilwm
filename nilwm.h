@@ -34,26 +34,27 @@
 extern "C" {
 #endif
 
-enum {                          /* workspace layout type */
-    LAYOUT_TILE = 0,
+enum {                              /* workspace layout type */
+    LAYOUT_TILE         = 0,
     LAYOUT_FREE
 };
 
-enum {                          /* client flags */
-    CLIENT_MAPPED       = 1 << 1,   /* displayed */
+enum {                              /* client flags */
+    CLIENT_DISPLAY      = 1 << 0,   /* displayed */
+    CLIENT_MAPPED       = 1 << 1,
     CLIENT_FLOAT        = 1 << 2,   /* float mode */
     CLIENT_FIXED        = 1 << 3,   /* size fixed (min = max) */
-    CLIENT_FOCUSED      = 1 << 4,   /* already focused */
+    CLIENT_FOCUS        = 1 << 4,   /* already focused */
 };
 
-enum {                          /* for focus/swap */
-    NAV_PREV    = -1,
-    NAV_MASTER  = 0,
-    NAV_NEXT    = 1,
+enum {                              /* for focus/swap */
+    NAV_PREV            = -1,
+    NAV_MASTER          = 0,
+    NAV_NEXT            = 1,
 };
 
 enum {
-    BAR_WS      = 0,
+    BAR_WS              = 0,
     BAR_SYM,
     BAR_TASK,
     BAR_STATUS,
@@ -62,16 +63,16 @@ enum {
 };
 
 enum {                              /* box flags */
-    BOX_LEFT        = 0 << 0,       /* 2 bits for box floating */
-    BOX_RIGHT       = 1 << 0,
-    BOX_FIXED       = 2 << 0,
-    BOX_TEXT_LEFT   = 0 << 2,       /* 2 bits for text alignment */
-    BOX_TEXT_RIGHT  = 1 << 2,
-    BOX_TEXT_CENTER = 2 << 2,
+    BOX_LEFT            = 0 << 0,   /* 2 bits for box floating */
+    BOX_RIGHT           = 1 << 0,
+    BOX_FIXED           = 2 << 0,
+    BOX_TEXT_LEFT       = 0 << 2,   /* 2 bits for text alignment */
+    BOX_TEXT_RIGHT      = 1 << 2,
+    BOX_TEXT_CENTER     = 2 << 2,
 };
 
 enum {
-    CURSOR_NORMAL,
+    CURSOR_NORMAL       = 0,
     CURSOR_MOVE,
     CURSOR_RESIZE,
     NUM_CURSOR,
@@ -117,7 +118,9 @@ struct color_t {
     uint32_t focus;
     uint32_t bar_bg;
     uint32_t bar_fg;
-    uint32_t bar_hl;
+    uint32_t bar_sel;
+    uint32_t bar_occ;
+    uint32_t bar_urg;
 };
 
 struct arg_t {
@@ -164,7 +167,9 @@ struct config_t {
     const char *focus_color;
     const char *bar_bg_color;
     const char *bar_fg_color;
-    const char *bar_hl_color;
+    const char *bar_sel_color;
+    const char *bar_occ_color;
+    const char *bar_urg_color;
 };
 
 struct atom_t {
@@ -210,8 +215,8 @@ void hide_client(struct client_t *self);
 void show_client(struct client_t *self);
 
 /* layout.c */
-void arrange();
 const struct layout_t *get_layout(int idx);
+void arrange_ws(struct workspace_t *self);
 void hide_ws(struct workspace_t *self);
 void show_ws(struct workspace_t *self);
 
