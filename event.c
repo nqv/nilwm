@@ -159,7 +159,7 @@ void handle_create_notify(xcb_create_notify_event_t *e) {
     c->h = e->height;
     c->border_width = e->border_width;
     /* add into current workspace and re-arrange */
-    add_client(c, &nil_.ws[nil_.ws_idx]);
+    attach_client(c, &nil_.ws[nil_.ws_idx]);
 }
 
 /** Handler for destroying a window

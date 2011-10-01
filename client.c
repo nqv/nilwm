@@ -100,7 +100,7 @@ void move_resize_client(struct client_t *self) {
 
 /** Add a client to the first position of client list
  */
-void add_client(struct client_t *self, struct workspace_t *ws) {
+void attach_client(struct client_t *self, struct workspace_t *ws) {
     if (ws->first) {
         ws->first->prev = self;
         self->next = ws->first;
@@ -110,6 +110,21 @@ void add_client(struct client_t *self, struct workspace_t *ws) {
     }
     self->prev = 0;
     ws->first = self;
+}
+
+/** Client should be in the workspace
+ */
+void detach_client(struct client_t *self, struct workspace_t *ws) {
+    if (self->prev) {
+        self->prev->next = self->next;
+    } else {    /* is the first window */
+        ws->first = self->next;
+    }
+    if (self->next) {
+        self->next->prev = self->prev;
+    } else {    /* is the last one */
+        ws->last = self->prev;
+    }
 }
 
 struct client_t *find_client(xcb_window_t win, struct workspace_t **ws) {
@@ -140,6 +155,8 @@ struct client_t *find_client(xcb_window_t win, struct workspace_t **ws) {
     return 0;
 }
 
+/** Find window and remove its client from found workspace
+ */
 struct client_t *remove_client(xcb_window_t win, struct workspace_t **ws) {
     struct client_t *c;
     unsigned int i;
@@ -147,16 +164,7 @@ struct client_t *remove_client(xcb_window_t win, struct workspace_t **ws) {
     for (i = 0; i < cfg_.num_workspaces; ++i) {
         for (c = nil_.ws[i].first; c; c = c->next) {
             if (c->win == win) {
-                if (c->prev) {
-                    c->prev->next = c->next;
-                } else {    /* is the first window */
-                    nil_.ws[i].first = c->next;
-                }
-                if (c->next) {
-                    c->next->prev = c->prev;
-                } else {    /* is the last one */
-                    nil_.ws[i].last = c->prev;
-                }
+                detach_client(c, &nil_.ws[i]);
                 if (ws) {   /* return the workspace affected */
                     *ws = &nil_.ws[i];
                 }

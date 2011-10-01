@@ -130,6 +130,8 @@ void toggle_floating(const struct arg_t *NIL_UNUSED(arg)) {
     xcb_flush(nil_.con);
 }
 
+/** Set master's size ratio
+ */
 void set_msize(const struct arg_t *arg) {
     int sz;
 
@@ -140,6 +142,8 @@ void set_msize(const struct arg_t *arg) {
     }
 }
 
+/** Switch to other workspace
+ */
 void change_ws(const struct arg_t *arg) {
     unsigned int prev_idx;
     if (arg->u == nil_.ws_idx || arg->u >= cfg_.num_workspaces) {
@@ -151,6 +155,33 @@ void change_ws(const struct arg_t *arg) {
     show_ws(&nil_.ws[nil_.ws_idx]);
     update_bar_ws(prev_idx);
     update_bar_ws(nil_.ws_idx);
+}
+
+/** Move current client to other workspace
+ */
+void push(const struct arg_t *arg) {
+    struct workspace_t *src, *dst;
+
+    if (arg->u == nil_.ws_idx) {        /* same workspace */
+        return;
+    }
+    src = &nil_.ws[nil_.ws_idx];
+    if (!src->focus) {
+        return;
+    }
+    dst = &nil_.ws[arg->u];
+    /* move client and hide it */
+    detach_client(src->focus, src);
+    attach_client(src->focus, dst);
+    hide_client(src->focus);
+    src->focus = 0;
+    /* rearrange and update new workspace indicator */
+    arrange();
+    update_bar_ws(arg->u);
+}
+
+void quit(const struct arg_t *NIL_UNUSED(arg)) {
+    NIL_LOG("%s", "quit");
 }
 
 int check_key(unsigned int mod, xcb_keysym_t key) {

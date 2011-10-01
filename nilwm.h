@@ -198,7 +198,8 @@ void init_client(struct client_t *self);
 void config_client(struct client_t *self);
 void check_client_size(struct client_t *self);
 void move_resize_client(struct client_t *self);
-void add_client(struct client_t *self, struct workspace_t *ws);
+void attach_client(struct client_t *self, struct workspace_t *ws);
+void detach_client(struct client_t *self, struct workspace_t *ws);
 struct client_t *find_client(xcb_window_t win, struct workspace_t **ws);
 struct client_t *remove_client(xcb_window_t win, struct workspace_t **ws);
 void focus_client(struct client_t *self);
@@ -233,6 +234,8 @@ void kill_focused(const struct arg_t *arg);
 void toggle_floating(const struct arg_t *arg);
 void set_msize(const struct arg_t *arg);
 void change_ws(const struct arg_t *arg);
+void push(const struct arg_t *arg);
+void quit(const struct arg_t *arg);
 
 int get_text_prop(xcb_window_t win, xcb_atom_t atom, char *s, unsigned int len);
 int cal_text_width(const char *text, int len);

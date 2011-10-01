@@ -25,6 +25,10 @@
 
 static const char *CMD_TERM[] = { "xterm", 0 };
 
+#define KEY_WS_(KEY, NUM)   \
+    { MOD_KEY,                      KEY,            change_ws,          {.u = NUM} }, \
+    { MOD_KEY|MOD_SHIFT,            KEY,            push,               {.u = NUM} },
+
 /* Keysym X11/keysymdefs.h */
 static const struct key_t KEYS[] = {
     /* modifier                     key             function            argument */
@@ -39,15 +43,16 @@ static const struct key_t KEYS[] = {
     { MOD_KEY|MOD_SHIFT,            XK_k,           swap,               {.i = -1} },
     { MOD_KEY|MOD_SHIFT,            XK_c,           kill_focused,       {.i =  0} },
     { MOD_KEY|MOD_SHIFT,            XK_space,       toggle_floating,    {.i =  0} },
-    { MOD_KEY,                      XK_1,           change_ws,          {.u =  0} },
-    { MOD_KEY,                      XK_2,           change_ws,          {.u =  1} },
-    { MOD_KEY,                      XK_3,           change_ws,          {.u =  2} },
-    { MOD_KEY,                      XK_4,           change_ws,          {.u =  3} },
-    { MOD_KEY,                      XK_5,           change_ws,          {.u =  4} },
-    { MOD_KEY,                      XK_6,           change_ws,          {.u =  5} },
-    { MOD_KEY,                      XK_7,           change_ws,          {.u =  6} },
-    { MOD_KEY,                      XK_8,           change_ws,          {.u =  7} },
-    { MOD_KEY,                      XK_9,           change_ws,          {.u =  8} },
+    KEY_WS_(                        XK_1,                               0)
+    KEY_WS_(                        XK_2,                               1)
+    KEY_WS_(                        XK_3,                               2)
+    KEY_WS_(                        XK_4,                               3)
+    KEY_WS_(                        XK_5,                               4)
+    KEY_WS_(                        XK_6,                               5)
+    KEY_WS_(                        XK_7,                               6)
+    KEY_WS_(                        XK_8,                               7)
+    KEY_WS_(                        XK_9,                               8)
+    { MOD_KEY|MOD_SHIFT|MOD_CTRL,   XK_q,           quit,               {.i =  0} },
 };
 
 #endif /* NILWM_CONFIG_H_ */
