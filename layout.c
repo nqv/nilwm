@@ -48,12 +48,12 @@ void arrange_tile(struct workspace_t *self) {
     NEXT_CLIENT_(c, m->next, CAN_TILE_(c));
     if (!c) {           /* 1 window */
         RESIZE_CLIENT_(m, nil_.x, nil_.y, nil_.w, nil_.h);
-        move_resize_client(m);
+        update_client_geom(m);
         return;
     }
     w = self->master_size / 100.0 * nil_.w;
     RESIZE_CLIENT_(m, nil_.x, nil_.y, w, nil_.h);
-    move_resize_client(m);
+    update_client_geom(m);
     /* next position */
     x = (int)w;
     y = nil_.y;
@@ -73,11 +73,11 @@ void arrange_tile(struct workspace_t *self) {
         }
         if (n == 1) {       /* last one */
             RESIZE_CLIENT_(c, x, y, w, nil_.h + nil_.y - y);
-            move_resize_client(c);
+            update_client_geom(c);
             break;
         }
         RESIZE_CLIENT_(c, x, y, w, h);
-        move_resize_client(c);
+        update_client_geom(c);
         y = c->y + c->h + 2 * c->border_width;
         --n;
     } while (0 != (c = c->next));
@@ -152,8 +152,8 @@ void swap_tile(struct workspace_t *self, const int dir) {
     }
     if (c && c != self->focus) {
         swap_client(self->focus, c);
-        move_resize_client(c);
-        move_resize_client(self->focus);
+        update_client_geom(c);
+        update_client_geom(self->focus);
     }
 }
 

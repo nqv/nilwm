@@ -76,7 +76,10 @@ void click_ws(struct bar_box_t *self, int x) {
 
 static
 void click_sym(struct bar_box_t *NIL_UNUSED(self), int NIL_UNUSED(x)) {
+    struct arg_t arg;
 
+    arg.i = -1;     /* next one */
+    set_layout(&arg);
 }
 
 void config_bar() {

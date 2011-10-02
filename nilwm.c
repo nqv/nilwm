@@ -143,6 +143,20 @@ void set_msize(const struct arg_t *arg) {
     }
 }
 
+void set_layout(const struct arg_t *arg) {
+    struct workspace_t *ws;
+
+    ws = &nil_.ws[nil_.ws_idx];
+    if (arg->i < 0) {   /* find next layout */
+        ws->layout = (ws->layout + 1)  & (NUM_LAYOUT - 1);
+    } else {
+        ws->layout = arg->i & (NUM_LAYOUT - 1);
+    }
+    /* update symbol and rearrange */
+    update_bar_sym();
+    arrange_ws(ws);
+}
+
 /** Switch to other workspace
  */
 void change_ws(const struct arg_t *arg) {

@@ -73,20 +73,28 @@ void config_client(struct client_t *self) {
     xcb_change_window_attributes(nil_.con, self->win, XCB_CW_EVENT_MASK, vals);
 }
 
-void check_client_size(struct client_t *self) {
+int check_client_size(struct client_t *self) {
+    int ret;
+
+    ret = 0;
     if (self->min_w && (self->w < self->min_w)) {
         self->w = self->min_w;
+        ret = 1;
     } else if (self->max_w && (self->w > self->max_w)) {
         self->w = self->max_w;
+        ret = 1;
     }
     if (self->min_h && (self->h < self->min_h)) {
         self->h = self->min_h;
+        ret = 1;
     } else if (self->max_h && (self->h > self->max_h)) {
         self->h = self->max_h;
+        ret = 1;
     }
+    return ret;
 }
 
-void move_resize_client(struct client_t *self) {
+void update_client_geom(struct client_t *self) {
     uint32_t vals[4];
     vals[0] = self->x;
     vals[1] = self->y;

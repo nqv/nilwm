@@ -36,7 +36,8 @@ extern "C" {
 
 enum {                              /* workspace layout type */
     LAYOUT_TILE         = 0,
-    LAYOUT_FREE
+    LAYOUT_FREE,
+    NUM_LAYOUT,
 };
 
 enum {                              /* client flags */
@@ -201,8 +202,8 @@ struct nilwm_t {
 /* client.c */
 void init_client(struct client_t *self);
 void config_client(struct client_t *self);
-void check_client_size(struct client_t *self);
-void move_resize_client(struct client_t *self);
+int check_client_size(struct client_t *self);
+void update_client_geom(struct client_t *self);
 void attach_client(struct client_t *self, struct workspace_t *ws);
 void detach_client(struct client_t *self, struct workspace_t *ws);
 struct client_t *find_client(xcb_window_t win, struct workspace_t **ws);
@@ -238,6 +239,7 @@ void swap(const struct arg_t *arg);
 void kill_focused(const struct arg_t *arg);
 void toggle_floating(const struct arg_t *arg);
 void set_msize(const struct arg_t *arg);
+void set_layout(const struct arg_t *arg);
 void change_ws(const struct arg_t *arg);
 void push(const struct arg_t *arg);
 void quit(const struct arg_t *arg);

@@ -276,11 +276,12 @@ void handle_map_request(xcb_map_request_event_t *e) {
     }
     init_client(c);
     NIL_SET_FLAG(c->flags, CLIENT_DISPLAY);
-    if (NIL_HAS_FLAG(c->flags, CLIENT_FLOAT)) {
-        check_client_size(c);           /* fix window size if needed */
-        move_resize_client(c);
-    } else {                            /* only rearrange if it's not float */
+    if (!NIL_HAS_FLAG(c->flags, CLIENT_FLOAT)) {
+        /* only rearrange if it's not float */
         arrange_ws(ws);
+    }
+    if (check_client_size(c)) {             /* fix window size if needed */
+        update_client_geom(c);
     }
     config_client(c);
     if (ws == &nil_.ws[nil_.ws_idx]) {
