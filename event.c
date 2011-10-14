@@ -6,6 +6,10 @@
 #include <stdlib.h>
 #include "nilwm.h"
 
+#define MOD_MASK_(state)    ((state) & ~(nil_.mask_numlock | XCB_MOD_MASK_LOCK))
+
+static struct mouse_event_t mouse_evt_;
+
 static
 void handle_key_press(xcb_key_press_event_t *e) {
     xcb_keysym_t sym;
@@ -13,7 +17,7 @@ void handle_key_press(xcb_key_press_event_t *e) {
 
     sym = xcb_key_symbols_get_keysym(nil_.key_syms, e->detail, 0);
     /* find key with *LOCK state removed */
-    if (check_key(e->state & ~(nil_.mask_numlock | XCB_MOD_MASK_LOCK), sym)) {
+    if (check_key(MOD_MASK_(e->state), sym)) {
         xcb_flush(nil_.con);
         return;
     }
@@ -37,20 +41,76 @@ void handle_button_press(xcb_button_press_event_t *e) {
         }
         return;
     }
+    /* click on client with modkey */
+    if (MOD_MASK_(e->state) == cfg_.mod_key) {
+        mouse_evt_.client = find_client(e->child, &mouse_evt_.ws);
+        if (!mouse_evt_.client) {
+            NIL_ERR("no client %d", e->child);
+            goto end;
+        }
+        NIL_LOG("button on win=%d", mouse_evt_.client->win);
+        switch (e->detail) {
+        case XCB_BUTTON_INDEX_3:
+            mouse_evt_.mode = CURSOR_RESIZE;
+            /* warp pointer to lower right */
+            mouse_evt_.x1 = mouse_evt_.client->x + mouse_evt_.client->w;
+            mouse_evt_.y1 = mouse_evt_.client->y + mouse_evt_.client->h;
+            xcb_warp_pointer(nil_.con, XCB_NONE, mouse_evt_.client->win,
+                0, 0, 0, 0, mouse_evt_.x1, mouse_evt_.y1);
+            break;
+        case XCB_BUTTON_INDEX_1:
+        default:
+            mouse_evt_.mode = CURSOR_MOVE;
+            mouse_evt_.x1 = e->event_x;
+            mouse_evt_.y1 = e->event_y;
+            break;
+        }
+        /* take control of the pointer in the root window */
+        xcb_grab_pointer(nil_.con, 0, nil_.scr->root,
+            XCB_EVENT_MASK_BUTTON_RELEASE | XCB_EVENT_MASK_BUTTON_MOTION,
+            XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, XCB_NONE,
+            nil_.cursor[mouse_evt_.mode], XCB_CURRENT_TIME);
+        xcb_flush(nil_.con);
+        return;
+    }
+end:
     /* if unhandled, forward the click to the application */
     xcb_allow_events(nil_.con, XCB_ALLOW_REPLAY_POINTER, e->time);
 }
 
 static
 void handle_button_release(xcb_button_release_event_t *e) {
+    const struct layout_t *h;
+
     NIL_LOG("event: mouse release %d", e->detail);
+    mouse_evt_.x2 = e->event_x;
+    mouse_evt_.y2 = e->event_y;
+
+    h = get_layout(mouse_evt_.ws);
+    switch (mouse_evt_.mode) {
+    case CURSOR_MOVE:
+        if (h->move) {
+            (*h->move)(mouse_evt_.ws, &mouse_evt_);
+        }
+        break;
+    case CURSOR_RESIZE:
+        if (h->resize) {
+            (*h->resize)(mouse_evt_.ws, &mouse_evt_);
+        }
+        break;
+    }
+    xcb_ungrab_pointer(nil_.con, XCB_CURRENT_TIME);
+    xcb_flush(nil_.con);
 }
 
 /** Mouse moved
  */
 static
 void handle_motion_notify(xcb_motion_notify_event_t *e) {
-    NIL_LOG("event: mouse motion %d", e->detail);
+    NIL_LOG("event: mouse motion %d,%d", e->event_x, e->event_y);
+
+    mouse_evt_.x2 = e->event_x;
+    mouse_evt_.y2 = e->event_y;
 }
 
 /** Mouse entered

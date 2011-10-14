@@ -157,6 +157,38 @@ void swap_tile(struct workspace_t *self, const int dir) {
     }
 }
 
+static
+void move_tile(struct workspace_t *self, struct mouse_event_t *e) {
+}
+
+static
+void resize_tile(struct workspace_t *self, struct mouse_event_t *e) {
+}
+
+static
+void move_free(struct workspace_t *self, struct mouse_event_t *e) {
+    struct client_t *c;
+
+    c = e->client;
+    c->x += e->x2 - e->x1;
+    c->y += e->y2 - e->y1;
+    update_client_geom(c);
+}
+
+static
+void resize_free(struct workspace_t *self, struct mouse_event_t *e) {
+    struct client_t *c;
+
+    c = e->client;
+    if ((e->x2 <= c->x) || (e->y2 <= c->y)) {
+        return;
+    }
+    c->w = e->x2 - c->x;
+    c->h = e->y2 - c->y;
+    check_client_size(c);
+    update_client_geom(c);
+}
+
 /** Handlers for each type of layouts
  */
 static const struct layout_t layouts_[] = {
@@ -165,19 +197,23 @@ static const struct layout_t layouts_[] = {
         .arrange    = &arrange_tile,
         .focus      = &focus_tile,
         .swap       = &swap_tile,
+        .move       = &move_tile,
+        .resize     = &resize_tile,
     },
     [LAYOUT_FREE] = {
         .symbol     = SYMBOL_FREE_,
         .arrange    = 0,
         .focus      = &focus_tile,
         .swap       = 0,
+        .move       = &move_free,
+        .resize     = &resize_free,
     },
 };
 
 /** Get layout handler of current workspace
  */
-const struct layout_t *get_layout(int idx) {
-    return &layouts_[nil_.ws[idx].layout];
+const struct layout_t *get_layout(struct workspace_t *self) {
+    return &layouts_[self->layout];
 }
 
 void arrange_ws(struct workspace_t *self) {

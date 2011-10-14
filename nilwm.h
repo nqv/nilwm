@@ -16,10 +16,11 @@
 #define NIL_QUOTE(x)            #x
 #define NIL_TOSTR(x)            NIL_QUOTE(x)
 #define NIL_SRC                 __FILE__ ":" NIL_TOSTR(__LINE__)
-#define NIL_ERR(fmt, ...)       fprintf(stderr, "*" NIL_SRC "\t\t" fmt "\n", __VA_ARGS__)
 #ifdef DEBUG
+# define NIL_ERR(fmt, ...)      fprintf(stderr, "*" NIL_SRC "\t\t" fmt "\n", __VA_ARGS__)
 # define NIL_LOG(fmt, ...)      fprintf(stdout, "-" NIL_SRC "\t\t" fmt "\n", __VA_ARGS__)
 #else
+# define NIL_ERR(fmt, ...)      fprintf(stderr, fmt "\n", __VA_ARGS__)
 # define NIL_LOG(fmt, ...)
 #endif
 #define NIL_INLINE              inline __attribute__((always_inline))
@@ -79,6 +80,7 @@ enum {
     NUM_CURSOR,
 };
 
+/* window wrapper */
 struct client_t {
     xcb_window_t win;
     int16_t x, y;
@@ -100,6 +102,7 @@ struct bar_box_t {
     unsigned int flags;
 };
 
+/* info bar */
 struct bar_t {
     xcb_window_t win;
     xcb_gcontext_t gc;
@@ -108,12 +111,22 @@ struct bar_t {
     struct bar_box_t box[NUM_BAR];
 };
 
+struct mouse_event_t {
+    int mode;   /* is also CURSOR */
+    struct client_t *client;
+    struct workspace_t *ws;
+    int16_t x1, y1;
+    int16_t x2, y2;
+};
+
+/* font information */
 struct font_t {
     xcb_font_t id;
     uint16_t ascent;
     uint16_t descent;
 };
 
+/* colors from user's configuration */
 struct color_t {
     uint32_t border;
     uint32_t focus;
@@ -152,6 +165,8 @@ struct layout_t {
     void (*arrange)(struct workspace_t *);
     void (*focus)(struct workspace_t *, int dir);
     void (*swap)(struct workspace_t *, int dir);
+    void (*move)(struct workspace_t *, struct mouse_event_t *e);
+    void (*resize)(struct workspace_t *, struct mouse_event_t *e);
 };
 
 struct config_t {
@@ -216,7 +231,7 @@ void hide_client(struct client_t *self);
 void show_client(struct client_t *self);
 
 /* layout.c */
-const struct layout_t *get_layout(int idx);
+const struct layout_t *get_layout(struct workspace_t *self);
 void arrange_ws(struct workspace_t *self);
 void hide_ws(struct workspace_t *self);
 void show_ws(struct workspace_t *self);

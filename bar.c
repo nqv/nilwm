@@ -197,7 +197,7 @@ void update_bar_ws(unsigned int idx) {
 void update_bar_sym() {
     const char *sym;
 
-    sym = (get_layout(nil_.ws_idx))->symbol;
+    sym = (get_layout(&nil_.ws[nil_.ws_idx]))->symbol;
     if (!sym) {
         NIL_ERR("no layout symbol %d", nil_.ws_idx);
         return;

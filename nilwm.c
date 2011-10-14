@@ -17,6 +17,21 @@
 #define CURSOR_PTR_MOVE_                XC_fleur
 #define CURSOR_PTR_RESIZE_              XC_bottom_right_corner
 
+/* grab keyboard (window, key, modifier) */
+#define GRAB_KEY_(win, key, mod)            \
+    xcb_grab_key(nil_.con, 1, win, mod, key, XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC)
+/* grab mouse button (window, button, modifier) */
+#define GRAB_BUTTON_(win, key, mod)         \
+    xcb_grab_button(nil_.con, 0, win,       \
+        XCB_EVENT_MASK_BUTTON_PRESS,                                    \
+        XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, win, XCB_NONE,        \
+        key, mod)
+#define GRAB_ALL_MOD_(func, win, key, mod)  \
+    func(win, key, mod);                                                \
+    func(win, key, mod | XCB_MOD_MASK_LOCK);                            \
+    func(win, key, mod | nil_.mask_numlock);                            \
+    func(win, key, mod | XCB_MOD_MASK_LOCK | nil_.mask_numlock)
+
 struct nilwm_t nil_;
 
 static
@@ -68,7 +83,7 @@ void focus(const struct arg_t *arg) {
     const struct layout_t *h;
 
     NIL_LOG("focus %d", nil_.ws_idx);
-    h = get_layout(nil_.ws_idx);
+    h = get_layout(&nil_.ws[nil_.ws_idx]);
     if (h->focus) {
         (*h->focus)(&nil_.ws[nil_.ws_idx], arg->i);
     }
@@ -80,7 +95,7 @@ void swap(const struct arg_t *arg) {
     const struct layout_t *h;
 
     NIL_LOG("swap %d", nil_.ws_idx);
-    h = get_layout(nil_.ws_idx);
+    h = get_layout(&nil_.ws[nil_.ws_idx]);
     if (h->swap) {
         (*h->swap)(&nil_.ws[nil_.ws_idx], arg->i);
     }
@@ -434,12 +449,7 @@ int init_key() {
             continue;
         }
         /* grap key in all combinations of NUMLOCK and CAPSLOCK*/
-        xcb_grab_key(nil_.con, 1, nil_.scr->root, k->mod,
-            key, XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC);
-        xcb_grab_key(nil_.con, 1, nil_.scr->root, k->mod | XCB_MOD_MASK_LOCK,
-            key, XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC);
-        xcb_grab_key(nil_.con, 1, nil_.scr->root, k->mod | nil_.mask_numlock,
-            key, XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC);
+        GRAB_ALL_MOD_(GRAB_KEY_, nil_.scr->root, key, k->mod);
     }
     return 0;
 }
@@ -449,18 +459,10 @@ int init_key() {
  */
 static
 int init_mouse() {
-    xcb_grab_button(nil_.con, 0, nil_.scr->root,
-        XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE,
-        XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, nil_.scr->root,
-        XCB_NONE, XCB_BUTTON_INDEX_1 /* left mouse button */, cfg_.mod_key);
-    xcb_grab_button(nil_.con, 0, nil_.scr->root,
-        XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE,
-        XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, nil_.scr->root,
-        XCB_NONE, XCB_BUTTON_INDEX_2 /* middle mouse button */, cfg_.mod_key);
-    xcb_grab_button(nil_.con, 0, nil_.scr->root,
-        XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE,
-        XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, nil_.scr->root,
-        XCB_NONE, XCB_BUTTON_INDEX_3 /* right mouse button */, cfg_.mod_key);
+    /* left, middle and right mouse button */
+    GRAB_ALL_MOD_(GRAB_BUTTON_, nil_.scr->root, XCB_BUTTON_INDEX_1, cfg_.mod_key);
+    GRAB_ALL_MOD_(GRAB_BUTTON_, nil_.scr->root, XCB_BUTTON_INDEX_2, cfg_.mod_key);
+    GRAB_ALL_MOD_(GRAB_BUTTON_, nil_.scr->root, XCB_BUTTON_INDEX_3, cfg_.mod_key);
     return 0;
 }
 
