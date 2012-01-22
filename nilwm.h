@@ -92,7 +92,8 @@ struct client_t {
     int map_state;
     unsigned int tags;
     unsigned int flags;
-    struct client_t *prev, *next;
+    struct client_t *next;
+    struct client_t **prev;
 };
 
 struct bar_box_t {
@@ -220,9 +221,8 @@ void config_client(struct client_t *self);
 int check_client_size(struct client_t *self);
 void update_client_geom(struct client_t *self);
 void attach_client(struct client_t *self, struct workspace_t *ws);
-void detach_client(struct client_t *self, struct workspace_t *ws);
+void detach_client(struct client_t *self);
 struct client_t *find_client(xcb_window_t win, struct workspace_t **ws);
-struct client_t *remove_client(xcb_window_t win, struct workspace_t **ws);
 void focus_client(struct client_t *self);
 void blur_client(struct client_t *self);
 void raise_client(struct client_t *self);

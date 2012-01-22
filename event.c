@@ -117,13 +117,13 @@ void handle_motion_notify(xcb_motion_notify_event_t *e) {
  */
 static
 void handle_enter_notify(xcb_enter_notify_event_t *e) {
-    struct client_t *c;
-    struct workspace_t *ws;
-
     NIL_LOG("event: enter notify win=%d, child=%d mode=%d",
         e->event, e->child, e->mode);
 #if 0
     if (e->mode == XCB_NOTIFY_MODE_NORMAL || e->mode == XCB_NOTIFY_MODE_UNGRAB) {
+        struct client_t *c;
+        struct workspace_t *ws;
+
         c = find_client(e->event, &ws);
         if (!c) {
             NIL_ERR("no client %d", e->event);
@@ -230,11 +230,12 @@ void handle_destroy_notify(xcb_destroy_notify_event_t *e) {
     struct workspace_t *ws;
 
     NIL_LOG("event: destroy notify win=%d", e->window);
-    c = remove_client(e->window, &ws);
+    c = find_client(e->window, &ws);
     if (!c) {
         NIL_ERR("no client %d", e->window);
         return;
     }
+    detach_client(c);
     if (!NIL_HAS_FLAG(c->flags, CLIENT_FLOAT)) {
         /* rearrange if is current workspace */
         if (ws == &nil_.ws[nil_.ws_idx]) {
@@ -307,6 +308,8 @@ void handle_configure_notify(xcb_configure_notify_event_t *e) {
     c->h = e->height;
     c->border_width = e->border_width;
     /* restack */
+#else
+    (void)c;
 #endif
 }
 

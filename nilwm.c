@@ -201,7 +201,7 @@ void push(const struct arg_t *arg) {
     }
     dst = &nil_.ws[arg->u];
     /* move client and hide it */
-    detach_client(src->focus, src);
+    detach_client(src->focus);
     attach_client(src->focus, dst);
     hide_client(src->focus);
     src->focus = 0;
@@ -406,6 +406,24 @@ void update_keys_mask() {
     NIL_LOG("mask num=0x%x shift=0x%x caps=0x%x mode=0x%x", nil_.mask_numlock,
         nil_.mask_shiftlock, nil_.mask_capslock, nil_.mask_modeswitch);
     free(reply);
+}
+
+static
+xcb_atom_t get_atom(const char *name) {
+    xcb_atom_t atom;
+    xcb_intern_atom_cookie_t cookie;
+    xcb_generic_error_t *err;
+    xcb_intern_atom_reply_t *reply;
+
+    cookie = xcb_intern_atom(nil_.con, 0, strlen(name), name);
+    reply = xcb_intern_atom_reply(nil_.con, cookie, &err);
+    if (!reply) {
+        NIL_ERR("intern atom %s", name);
+        return 0;
+    }
+    atom = reply->atom;
+    free(reply);
+    return atom;
 }
 
 static
@@ -628,11 +646,11 @@ int init_wm() {
     NIL_LOG("workspace %d,%d %ux%u", nil_.x, nil_.y, nil_.w, nil_.h);
 
     /* init atoms */
-    nil_.atom.net_supported = xcb_atom_get(nil_.con, "_NET_SUPPORTED");
-    nil_.atom.net_wm_name   = xcb_atom_get(nil_.con, "_NET_WM_NAME");
-    nil_.atom.wm_protocols  = xcb_atom_get(nil_.con, "WM_PROTOCOLS");
-    nil_.atom.wm_delete     = xcb_atom_get(nil_.con, "WM_DELETE_WINDOW");
-    nil_.atom.wm_state      = xcb_atom_get(nil_.con, "WM_STATE");
+    nil_.atom.net_supported = get_atom("_NET_SUPPORTED");
+    nil_.atom.net_wm_name   = get_atom("_NET_WM_NAME");
+    nil_.atom.wm_protocols  = get_atom("WM_PROTOCOLS");
+    nil_.atom.wm_delete     = get_atom("WM_DELETE_WINDOW");
+    nil_.atom.wm_state      = get_atom("WM_STATE");
     return 0;
 }
 

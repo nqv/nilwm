@@ -16,7 +16,7 @@
         if (COND) { break; }                \
     }
 #define PREV_CLIENT_(C, FROM, COND)         \
-    for (C = FROM; C; C = C->prev) {        \
+    for (C = FROM; C != *C->prev; C = *C->prev) {   \
         if (COND) { break; }                \
     }
 #define EACH_CLIENT_(WS, C, CMD)            \
@@ -102,9 +102,9 @@ void focus_tile(struct workspace_t *self, const int dir) {
             }
         }
     } else if (dir == NAV_PREV) {
-        PREV_CLIENT_(c, self->focus->prev, CAN_FOCUS_(c));
+        PREV_CLIENT_(c, *self->focus->prev, CAN_FOCUS_(c));
         if (!c) {       /* loop */
-            for (c = self->last; c && (c != self->focus); c = c->prev) {
+            for (c = self->last; (c != *c->prev) && (c != self->focus); c = *c->prev) {
                 if (CAN_FOCUS_(c)) {
                     break;
                 }
@@ -139,9 +139,9 @@ void swap_tile(struct workspace_t *self, const int dir) {
             }
         }
     } else if (dir == NAV_PREV) {
-        PREV_CLIENT_(c, self->focus->prev, CAN_TILE_(c));
+        PREV_CLIENT_(c, *self->focus->prev, CAN_TILE_(c));
         if (!c) {   /* loop */
-            for (c = self->last; c && (c != self->focus); c = c->prev) {
+            for (c = self->last; (c != *c->prev) && (c != self->focus); c = *c->prev) {
                 if (CAN_TILE_(c)) {
                     break;
                 }
@@ -159,16 +159,21 @@ void swap_tile(struct workspace_t *self, const int dir) {
 
 static
 void move_tile(struct workspace_t *self, struct mouse_event_t *e) {
+    (void)self;
+    (void)e;
 }
 
 static
 void resize_tile(struct workspace_t *self, struct mouse_event_t *e) {
+    (void)self;
+    (void)e;
 }
 
 static
 void move_free(struct workspace_t *self, struct mouse_event_t *e) {
     struct client_t *c;
 
+    (void)self;
     c = e->client;
     c->x += e->x2 - e->x1;
     c->y += e->y2 - e->y1;
@@ -179,6 +184,7 @@ static
 void resize_free(struct workspace_t *self, struct mouse_event_t *e) {
     struct client_t *c;
 
+    (void)self;
     c = e->client;
     if ((e->x2 <= c->x) || (e->y2 <= c->y)) {
         return;

@@ -4,6 +4,7 @@
  */
 
 #include <stdlib.h>
+#include <stddef.h>
 #include "nilwm.h"
 
 /** Initialize a client after having window
@@ -52,8 +53,8 @@ void init_client(struct client_t *self) {
         self->max_w = self->max_h = 0;
     }
     self->flags = 0;
-    if (self->min_w && self->min_h && self->max_w && self->max_h
-        && (self->min_w == self->max_w) && (self->min_h == self->max_h)) {
+    if ((self->min_w && self->max_w && (self->min_w == self->max_w))
+        || (self->min_h && self->max_h && (self->min_h == self->max_h))) {
         NIL_SET_FLAG(self->flags, CLIENT_FLOAT | CLIENT_FIXED); /* force float */
     }
     NIL_LOG("hints min=%u,%u max=%u,%u flag=%u", self->min_w, self->min_h,
@@ -109,30 +110,28 @@ void update_client_geom(struct client_t *self) {
 /** Add a client to the first position of client list
  */
 void attach_client(struct client_t *self, struct workspace_t *ws) {
+    self->next = ws->first;
+    self->prev = &ws->first;
     if (ws->first) {
-        ws->first->prev = self;
-        self->next = ws->first;
+        ws->first->prev = &self->next;
     } else {
-        self->next = 0;
         ws->last = self;
     }
-    self->prev = 0;
     ws->first = self;
 }
 
 /** Client should be in the workspace
  */
-void detach_client(struct client_t *self, struct workspace_t *ws) {
-    if (self->prev) {
-        self->prev->next = self->next;
-    } else {    /* is the first window */
-        ws->first = self->next;
-    }
+void detach_client(struct client_t *self) {
     if (self->next) {
         self->next->prev = self->prev;
-    } else {    /* is the last one */
-        ws->last = self->prev;
+    } else {                        /* list is empty, no more last element */
+        /* Using container_of macro. See http://en.wikipedia.org/wiki/Offsetof */
+        struct workspace_t *ws = (struct workspace_t *)
+            ((char *)(self->prev) - offsetof(struct workspace_t, first));
+        ws->last = 0;
     }
+    *(self->prev) = self->next;
 }
 
 struct client_t *find_client(xcb_window_t win, struct workspace_t **ws) {
@@ -154,26 +153,6 @@ struct client_t *find_client(xcb_window_t win, struct workspace_t **ws) {
         for (c = nil_.ws[i].first; c; c = c->next) {
             if (c->win == win) {
                 if (ws) {
-                    *ws = &nil_.ws[i];
-                }
-                return c;
-            }
-        }
-    }
-    return 0;
-}
-
-/** Find window and remove its client from found workspace
- */
-struct client_t *remove_client(xcb_window_t win, struct workspace_t **ws) {
-    struct client_t *c;
-    unsigned int i;
-
-    for (i = 0; i < cfg_.num_workspaces; ++i) {
-        for (c = nil_.ws[i].first; c; c = c->next) {
-            if (c->win == win) {
-                detach_client(c, &nil_.ws[i]);
-                if (ws) {   /* return the workspace affected */
                     *ws = &nil_.ws[i];
                 }
                 return c;
